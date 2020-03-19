@@ -20,6 +20,8 @@ void afficher_etang(int* etang , int largeur ,int longueur );
 void generer_poison(int* etang , int largeur , int longueur , poisson_t* p);
 void init_poisson(poisson_t* p);
 void modif_etang(int* etang , int p , int s , int val);
+void ajouter_requete(file_t* f,requete_t* r);
+void supprimer_requete(file_t* f,requete_t* r);
 
 
 #endif

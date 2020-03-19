@@ -81,3 +81,22 @@ void modif_etang(int *etang, int p, int s, int val)
     etang[p] = 0;
     etang[s] = val;
 }
+
+void ajouter_requete(file_t* f,requete_t* r){
+    f->file[f->indice_tete]=*r;
+    f->indice_tete++;
+    if (f->indice_tete==50)
+    {
+        f->indice_tete=0;
+    }
+    
+}
+
+void supprimer_requete(file_t* f,requete_t* r){
+    f->file[f->indice_tete]=*r;
+    f->indice_queue++;
+    if (f->indice_queue==50)
+    {
+        f->indice_queue=0;
+    }
+}
