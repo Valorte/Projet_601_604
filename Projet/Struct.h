@@ -47,7 +47,7 @@ typedef struct reponse_t
 typedef struct action_t
 {
     long type;
-    int id;
+    int id_action;
     int position;
 }action_t;
 

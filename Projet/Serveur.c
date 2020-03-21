@@ -1,23 +1,27 @@
 #include "Fonction.h"
 int main(int argc, char *argv[])
 {
+    int *etang;
     reponse_t reponse[2];
-    requete_t requete; 
+    requete_t requete;
     action_t action;
     victoire_t victoire;
     file_t file;
-    int sockfd, i = 0, fd, sockclient;
+    int sockfd, i = 0, fd, sockclient, shmid, longueur, largeur, j, k = 0;
     long type;
     struct sockaddr_in adresseServeur;
     struct sockaddr_in adresseClient[2];
     socklen_t longueurAdresse;
 
     /* Récupération des arguments */
-    if (argc != 2)
+    if (argc != 5)
     {
-        fprintf(stderr, "Usage : %s port\n", argv[0]);
+        fprintf(stderr, "Usage : %s port longueur largeur cle\n", argv[0]);
         fprintf(stderr, "Où :\n");
         fprintf(stderr, "  port           : port d'écoute du serveur\n");
+        fprintf(stderr, "  longueur       : longueur de l'etang\n");
+        fprintf(stderr, "  largeur        : largeur de l'etang\n");
+        fprintf(stderr, "  cle            : segment memoire\n");
         exit(EXIT_FAILURE);
     }
     file.indice_queue = 0;
@@ -55,23 +59,21 @@ int main(int argc, char *argv[])
         if (requete.type == 1)
         {
             reponse[i].type = TYPE_REPONSE;
-            reponse[i].id = i+1;
+            reponse[i].id = i + 1;
             strcpy(reponse[i].port, "1024");
             i++;
             printf("Joueur %d connecté\n", i);
-            
         }
     }
 
-    for ( i = 0; i < 2; i++)
+    for (i = 0; i < 2; i++)
     {
         if (sendto(sockfd, &reponse[i], sizeof(reponse_t), 0, (struct sockaddr *)&adresseClient[i], longueurAdresse) == -1)
-            {
-                perror("Erreur lors de l'envoi du message ");
-                exit(EXIT_FAILURE);
-            }
+        {
+            perror("Erreur lors de l'envoi du message ");
+            exit(EXIT_FAILURE);
+        }
     }
-    
 
     /* Fermeture de la socket */
     if (close(sockfd) == -1)
@@ -79,6 +81,33 @@ int main(int argc, char *argv[])
         perror("Erreur lors de la fermeture de la socket ");
         exit(EXIT_FAILURE);
     }
+    longueur = atoi(argv[2]);
+    largeur = atoi(argv[3]);
+    /*Segment memoire partagé*/
+    if ((shmid = shmget((key_t)atoi(argv[4]), sizeof(int) * (longueur * largeur), S_IRUSR | S_IWUSR | IPC_CREAT | IPC_EXCL)) == -1)
+    {
+        if (errno == EEXIST)
+            fprintf(stderr, "Le segment de mémoire partagée (cle=%d) existe deja\n", atoi(argv[4]));
+        else
+            perror("Erreur lors de la création du segment de mémoire ");
+        exit(EXIT_FAILURE);
+    };
+
+    /* Attachement du segment de mémoire partagée */
+    if ((etang = shmat(shmid, NULL, 0)) == (void *)-1)
+    {
+        perror("Erreur lors de l'attachement du segment de mémoire partagée ");
+        exit(EXIT_FAILURE);
+    }
+    for (i = 0; i < longueur; i++)
+    {
+        for (j = 0; j < largeur; j++)
+        {
+            etang[k] = 0;
+            k++;
+        }
+    }
+    afficher_etang(etang, largeur, longueur);
 
     /* Création de la socket */
     if ((fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1)
@@ -129,7 +158,7 @@ int main(int argc, char *argv[])
             perror("Erreur lors de la lecture de la taille du message ");
             exit(EXIT_FAILURE);
         }
-        printf("On vient de poser une canne a la position : %d\n",action.position);
+        printf("On vient de poser une canne a la position : %d\n", action.position);
         break;
     case 3:
         if (read(sockclient, &action, sizeof(action_t)) == -1)
@@ -137,7 +166,10 @@ int main(int argc, char *argv[])
             perror("Erreur lors de la lecture de la taille du message ");
             exit(EXIT_FAILURE);
         }
-        printf("On vient de poser un bonus a la position : %d\n",action.position);
+        printf("On vient de poser un bonus a la position : %d\n", action.position);
+        
+        modif_etang(etang,action.position,action.position,action.id_action);
+        afficher_etang(etang, largeur, longueur);
         break;
     case 5:
         if (read(sockclient, &victoire.j, sizeof(joueur_t)) == -1)
@@ -145,8 +177,15 @@ int main(int argc, char *argv[])
             perror("Erreur lors de la lecture de la taille du message ");
             exit(EXIT_FAILURE);
         }
-        printf("Bravo au Joueur %d\n",victoire.j.num);
+        printf("Bravo au Joueur %d\n", victoire.j.num);
         break;
+    }
+
+    /* Suppression du segment de memoire partagee */
+    if (shmctl(shmid, IPC_RMID, 0) == -1)
+    {
+        perror("Erreur lors de la suppression du segment de memoire partagee ");
+        exit(EXIT_FAILURE);
     }
 
     printf("Serveur terminé.\n");

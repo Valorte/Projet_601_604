@@ -37,9 +37,9 @@ void afficher_etang(int *etang, int largeur, int longueur)
         for (j = 0; j < largeur; j++)
         {
             printf("%d", etang[k]);
+            k++;
         }
         printf("\n");
-        k++;
     }
 }
 void init_poisson(poisson_t *p)

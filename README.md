@@ -40,11 +40,14 @@ Poisson/Requin :
     -int etat (fuite/normal)
 
 Joueurs :
-    -char nom
+    -int numero(1/2);
     -int point
     -int argent
     -int etat (peche/attente)
 
+Faire type requete
+
+//Utilisation de union pour le type de message
 
 Mettre en fonction au fur et a mesure
 Que faire : 

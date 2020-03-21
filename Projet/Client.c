@@ -100,7 +100,7 @@ int main(int argc, char *argv[])
     }*/
 
     action.type = TYPE_BONUS;
-    action.id = j.num;
+    action.id_action = 6;
     action.position = 10;
     if (write(fd, &action.type, sizeof(long)) == -1)
     {
