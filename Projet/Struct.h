@@ -17,6 +17,7 @@ typedef struct poisson_t
     int valeur;
     int pos;
     int etat; 
+    int id;
 }poisson_t;
 
 typedef struct plateau_t

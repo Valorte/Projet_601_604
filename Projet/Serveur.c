@@ -1,13 +1,47 @@
 #include "Fonction.h"
+
+int vict=0;
+int *etang;
+int longueur, largeur ,nbpoisson;
+
+void* create_poisson(void* args){
+    poisson_t* tableau=(poisson_t*)args;
+    while (nbpoisson < MAX_POISSON)
+    {
+        init_poisson(&tableau[nbpoisson],nbpoisson);
+        nbpoisson++;
+    }
+    
+    return NULL;
+}
+
+void* routine_poisson(void* args){
+    int i=0,p;
+    poisson_t* tmp = (void*)args;
+    while (i!=5)
+    {   
+        
+        modif_etang(etang,p,tmp->pos,tmp->valeur);
+        afficher_etang(etang,largeur,longueur);
+        printf("\n");
+        i++;
+        sleep(1);
+    }
+    
+    return NULL;
+}
+
+
 int main(int argc, char *argv[])
 {
-    int *etang;
+    pthread_t p_poisson;
+    poisson_t p;
     reponse_t reponse[2];
     requete_t requete;
     action_t action;
     victoire_t victoire;
     file_t file;
-    int sockfd, i = 0, fd, sockclient, shmid, longueur, largeur, j, k = 0;
+    int sockfd, i = 0, fd, sockclient, shmid, j, k = 0;
     long type;
     struct sockaddr_in adresseServeur;
     struct sockaddr_in adresseClient[2];
@@ -135,6 +169,9 @@ int main(int argc, char *argv[])
         perror("Erreur lors de la mise en mode passif ");
         exit(EXIT_FAILURE);
     }
+    init_poisson(&p,0);
+
+    pthread_create(&p_poisson,NULL,routine_poisson,&p);
 
     /* Attente d'une connexion */
     printf("Serveur : attente de connexion...\n");
@@ -169,7 +206,7 @@ int main(int argc, char *argv[])
         printf("On vient de poser un bonus a la position : %d\n", action.position);
         
         modif_etang(etang,action.position,action.position,action.id_action);
-        afficher_etang(etang, largeur, longueur);
+        
         break;
     case 5:
         if (read(sockclient, &victoire.j, sizeof(joueur_t)) == -1)
@@ -177,9 +214,11 @@ int main(int argc, char *argv[])
             perror("Erreur lors de la lecture de la taille du message ");
             exit(EXIT_FAILURE);
         }
+        vict++;
         printf("Bravo au Joueur %d\n", victoire.j.num);
         break;
     }
+    pthread_join(p_poisson,NULL);
 
     /* Suppression du segment de memoire partagee */
     if (shmctl(shmid, IPC_RMID, 0) == -1)

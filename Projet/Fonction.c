@@ -42,10 +42,12 @@ void afficher_etang(int *etang, int largeur, int longueur)
         printf("\n");
     }
 }
-void init_poisson(poisson_t *p)
+void init_poisson(poisson_t *p ,int val)
 {
     int v;
+    p->id=val;
     p->etat = 0;
+
     v = (rand() % 99);
     if (v < 65)
     {
@@ -64,7 +66,7 @@ void generer_poison(int *etang, int largeur, int longueur, poisson_t *p)
 {
     int i;
     srand(time(NULL));
-    init_poisson(p);
+    init_poisson(p,0);
     i = rand() % longueur * largeur;
 
     while (etang[i] != 0)
@@ -99,4 +101,36 @@ void supprimer_requete(file_t* f,requete_t* r){
     {
         f->indice_queue=0;
     }
+}
+
+void deplacement_poisson(int* etang,poisson_t* p,int largeur ,int longueur){
+    int r;
+    etang[p->pos]=0;
+
+    r=rand()%4;
+
+    switch (r)
+    {
+    case 0:
+        if (p->pos>0)
+        {
+            p->pos--;
+        }
+        break;
+    case 1:
+        if (p->pos<(largeur*longueur)-1)
+        {
+            p->pos++;
+        }
+        break;
+    case 2:
+        if ()
+        {
+            /* code */
+        }
+              
+    default:
+        break;
+    }
+
 }

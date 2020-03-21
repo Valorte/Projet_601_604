@@ -18,7 +18,7 @@ void envoie_message(int sockfd, void* msg ,struct sockaddr_in adresseServeur);
 void recevoir_message(int sockfd , int* msg, void *sa, void* sl);
 void afficher_etang(int* etang , int largeur ,int longueur );
 void generer_poison(int* etang , int largeur , int longueur , poisson_t* p);
-void init_poisson(poisson_t* p);
+void init_poisson(poisson_t* p,int val);
 void modif_etang(int* etang , int p , int s , int val);
 void ajouter_requete(file_t* f,requete_t* r);
 void supprimer_requete(file_t* f,requete_t* r);
