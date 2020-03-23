@@ -1,41 +1,48 @@
 #include "Fonction.h"
 
-int vict=0;
+pthread_mutex_t mutex_etang = PTHREAD_MUTEX_INITIALIZER;
+pthread_t p_poisson[3];
+int vict = 0;
 int *etang;
-int longueur, largeur ,nbpoisson;
+int longueur, largeur, nbpoisson;
 
-void* create_poisson(void* args){
-    poisson_t* tableau=(poisson_t*)args;
+void *create_poisson(void *args)
+{
+    poisson_t *tableau = (poisson_t *)args;
     while (nbpoisson < MAX_POISSON)
     {
-        init_poisson(&tableau[nbpoisson],nbpoisson);
+        init_poisson(&tableau[nbpoisson], nbpoisson);
         nbpoisson++;
     }
-    
+
     return NULL;
 }
 
-void* routine_poisson(void* args){
-    int i=0,p;
-    poisson_t* tmp = (void*)args;
-    while (i!=5)
-    {   
-        
-        modif_etang(etang,p,tmp->pos,tmp->valeur);
-        afficher_etang(etang,largeur,longueur);
+void *routine_poisson(void *args)
+{
+    int i = 0, p;
+    poisson_t *tmp = (void *)args;
+    while (i != 15)
+    {
+        p=tmp->pos;
+        deplacement_poisson(etang,tmp,largeur,longueur);
+        pthread_mutex_lock(&mutex_etang);
+        modif_etang(etang, p, tmp->pos, tmp->valeur);
+        afficher_etang(etang, largeur, longueur);
+        pthread_mutex_unlock(&mutex_etang);
         printf("\n");
         i++;
-        sleep(1);
+        
+        
     }
-    
+
     return NULL;
 }
-
 
 int main(int argc, char *argv[])
 {
-    pthread_t p_poisson;
-    poisson_t p;
+
+    poisson_t p[3];
     reponse_t reponse[2];
     requete_t requete;
     action_t action;
@@ -169,9 +176,17 @@ int main(int argc, char *argv[])
         perror("Erreur lors de la mise en mode passif ");
         exit(EXIT_FAILURE);
     }
-    init_poisson(&p,0);
+    
+    for ( i = 0; i < 3; i++)
+    {
+        /* code */
+    
+    
+        init_poisson(&p[i], 0);
 
-    pthread_create(&p_poisson,NULL,routine_poisson,&p);
+        pthread_create(&p_poisson[i], NULL, routine_poisson, &p[i]);
+    
+    }
 
     /* Attente d'une connexion */
     printf("Serveur : attente de connexion...\n");
@@ -204,9 +219,9 @@ int main(int argc, char *argv[])
             exit(EXIT_FAILURE);
         }
         printf("On vient de poser un bonus a la position : %d\n", action.position);
-        
-        modif_etang(etang,action.position,action.position,action.id_action);
-        
+
+        modif_etang(etang, action.position, action.position, action.id_action);
+
         break;
     case 5:
         if (read(sockclient, &victoire.j, sizeof(joueur_t)) == -1)
@@ -218,7 +233,27 @@ int main(int argc, char *argv[])
         printf("Bravo au Joueur %d\n", victoire.j.num);
         break;
     }
-    pthread_join(p_poisson,NULL);
+    
+    for ( i = 0; i < largeur; i++)
+    {
+        /* code */
+    
+        pthread_join(p_poisson[i], NULL);
+    }
+    
+    
+
+    /* Fermeture des sockets */
+    if (close(sockclient) == -1)
+    {
+        perror("Erreur lors de la fermeture de la socket de communication ");
+        exit(EXIT_FAILURE);
+    }
+    if (close(fd) == -1)
+    {
+        perror("Erreur lors de la fermeture de la socket de connexion ");
+        exit(EXIT_FAILURE);
+    }
 
     /* Suppression du segment de memoire partagee */
     if (shmctl(shmid, IPC_RMID, 0) == -1)

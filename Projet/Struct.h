@@ -67,5 +67,4 @@ typedef struct file_t
     int indice_queue;
 }file_t;
 
-
 #endif

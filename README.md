@@ -31,13 +31,8 @@ Mode fuite , etat d'un poisson:
 Debut de reflexion
 
 Etang : 
-    -int** Taille
+    -int* Taille
 
-Poisson/Requin : 
-    -int id
-    -int Valeur
-    -(?) position (x,y)
-    -int etat (fuite/normal)
 
 Joueurs :
     -int numero(1/2);

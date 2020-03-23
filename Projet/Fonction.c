@@ -47,6 +47,7 @@ void init_poisson(poisson_t *p ,int val)
     int v;
     p->id=val;
     p->etat = 0;
+    p->pos=0;
 
     v = (rand() % 99);
     if (v < 65)
@@ -109,6 +110,7 @@ void deplacement_poisson(int* etang,poisson_t* p,int largeur ,int longueur){
 
     r=rand()%4;
 
+    printf("\nrand : %d\n",r);
     switch (r)
     {
     case 0:
@@ -123,13 +125,15 @@ void deplacement_poisson(int* etang,poisson_t* p,int largeur ,int longueur){
             p->pos++;
         }
         break;
-    case 2:
-        if ()
-        {
-            /* code */
+    case 2: 
+        if(p->pos<(largeur*longueur)-largeur){
+            p->pos+=largeur;
         }
-              
-    default:
+        break;    
+    case 3: 
+        if(p->pos>=largeur){
+            p->pos-=largeur;
+        }
         break;
     }
 
