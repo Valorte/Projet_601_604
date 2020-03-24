@@ -1,0 +1,80 @@
+/*victoire.type = TYPE_VICTOIRE;
+    victoire.j = j;
+    printf("Dans victoire :%d\n",victoire.j.num);
+    if (write(fd, &victoire.type, sizeof(long)) == -1)
+    {
+        perror("Erreur lors du type de message ");
+        exit(EXIT_FAILURE);
+    }
+    if (write(fd, &victoire.j, sizeof(joueur_t)) == -1)
+    {
+        perror("Erreur lors de l'envoi du message ");
+        exit(EXIT_FAILURE);
+    }*/
+
+    action.type = TYPE_BONUS;
+    action.id_action = 6;
+    action.position = 10;
+    if (write(fd, &action.type, sizeof(long)) == -1)
+    {
+        perror("Erreur lors du type de message ");
+        exit(EXIT_FAILURE);
+    }
+    if (write(fd, &action, sizeof(action_t)) == -1)
+    {
+        perror("Erreur lors de l'envoi du message ");
+        exit(EXIT_FAILURE);
+    }
+    printf("Client : message envoyé.\n");
+
+
+
+
+
+
+
+
+    if (read(sockclient, &type, sizeof(long)) == -1)
+    {
+        perror("Erreur lors de la lecture de la taille du message ");
+        exit(EXIT_FAILURE);
+    }
+
+    switch (type)
+    {
+    case 4:
+        if (read(sockclient, &action, sizeof(action_t)) == -1)
+        {
+            perror("Erreur lors de la lecture de la taille du message ");
+            exit(EXIT_FAILURE);
+        }
+        printf("On vient de poser une canne a la position : %d\n", action.position);
+        break;
+    case 3:
+        if (read(sockclient, &action, sizeof(action_t)) == -1)
+        {
+            perror("Erreur lors de la lecture de la taille du message ");
+            exit(EXIT_FAILURE);
+        }
+        printf("On vient de poser un bonus a la position : %d\n", action.position);
+
+        modif_etang(etang, action.position, action.position, action.id_action);
+
+        break;
+    case 5:
+        if (read(sockclient, &victoire.j, sizeof(joueur_t)) == -1)
+        {
+            perror("Erreur lors de la lecture de la taille du message ");
+            exit(EXIT_FAILURE);
+        }
+        vict++;
+        printf("Bravo au Joueur %d\n", victoire.j.num);
+        break;
+    }
+
+    for (i = 0; i < largeur; i++)
+    {
+        /* code */
+
+        pthread_join(p_poisson[i], NULL);
+    }

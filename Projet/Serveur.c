@@ -24,16 +24,14 @@ void *routine_poisson(void *args)
     poisson_t *tmp = (void *)args;
     while (i != 15)
     {
-        p=tmp->pos;
-        deplacement_poisson(etang,tmp,largeur,longueur);
+        p = tmp->pos;
+        deplacement_poisson(etang, tmp, largeur, longueur);
         pthread_mutex_lock(&mutex_etang);
         modif_etang(etang, p, tmp->pos, tmp->valeur);
         afficher_etang(etang, largeur, longueur);
         pthread_mutex_unlock(&mutex_etang);
         printf("\n");
         i++;
-        
-        
     }
 
     return NULL;
@@ -42,27 +40,22 @@ void *routine_poisson(void *args)
 int main(int argc, char *argv[])
 {
 
-    poisson_t p[3];
     reponse_t reponse[2];
     requete_t requete;
-    action_t action;
-    victoire_t victoire;
     file_t file;
-    int sockfd, i = 0, fd, sockclient, shmid, j, k = 0;
-    long type;
+    int sockfd, i = 0, fd, sockclient, sockclient2, j, k = 0, taille;
     struct sockaddr_in adresseServeur;
     struct sockaddr_in adresseClient[2];
     socklen_t longueurAdresse;
 
     /* Récupération des arguments */
-    if (argc != 5)
+    if (argc != 4)
     {
         fprintf(stderr, "Usage : %s port longueur largeur cle\n", argv[0]);
         fprintf(stderr, "Où :\n");
         fprintf(stderr, "  port           : port d'écoute du serveur\n");
         fprintf(stderr, "  longueur       : longueur de l'etang\n");
         fprintf(stderr, "  largeur        : largeur de l'etang\n");
-        fprintf(stderr, "  cle            : segment memoire\n");
         exit(EXIT_FAILURE);
     }
     file.indice_queue = 0;
@@ -116,6 +109,13 @@ int main(int argc, char *argv[])
         }
     }
 
+    if ((fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1)
+    {
+        perror("Erreur lors de la création de la socket ");
+        exit(EXIT_FAILURE);
+    }
+   
+
     /* Fermeture de la socket */
     if (close(sockfd) == -1)
     {
@@ -124,22 +124,8 @@ int main(int argc, char *argv[])
     }
     longueur = atoi(argv[2]);
     largeur = atoi(argv[3]);
-    /*Segment memoire partagé*/
-    if ((shmid = shmget((key_t)atoi(argv[4]), sizeof(int) * (longueur * largeur), S_IRUSR | S_IWUSR | IPC_CREAT | IPC_EXCL)) == -1)
-    {
-        if (errno == EEXIST)
-            fprintf(stderr, "Le segment de mémoire partagée (cle=%d) existe deja\n", atoi(argv[4]));
-        else
-            perror("Erreur lors de la création du segment de mémoire ");
-        exit(EXIT_FAILURE);
-    };
-
-    /* Attachement du segment de mémoire partagée */
-    if ((etang = shmat(shmid, NULL, 0)) == (void *)-1)
-    {
-        perror("Erreur lors de l'attachement du segment de mémoire partagée ");
-        exit(EXIT_FAILURE);
-    }
+    taille = longueur * largeur;
+    etang = malloc(sizeof(int) * taille);
     for (i = 0; i < longueur; i++)
     {
         for (j = 0; j < largeur; j++)
@@ -151,17 +137,13 @@ int main(int argc, char *argv[])
     afficher_etang(etang, largeur, longueur);
 
     /* Création de la socket */
-    if ((fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1)
-    {
-        perror("Erreur lors de la création de la socket ");
-        exit(EXIT_FAILURE);
-    }
 
     /* Création de l'adresse du serveur */
     memset(&adresseServeur, 0, sizeof(struct sockaddr_in));
     adresseServeur.sin_family = AF_INET;
     adresseServeur.sin_addr.s_addr = htonl(INADDR_ANY);
     adresseServeur.sin_port = htons(atoi("1024"));
+
 
     /* Nommage de la socket */
     if (bind(fd, (struct sockaddr *)&adresseServeur, sizeof(struct sockaddr_in)) == -1)
@@ -171,22 +153,12 @@ int main(int argc, char *argv[])
     }
 
     /* Mise en mode passif de la socket */
-    if (listen(fd, 1) == -1)
+    if (listen(fd, 2) == -1)
     {
         perror("Erreur lors de la mise en mode passif ");
         exit(EXIT_FAILURE);
     }
-    
-    for ( i = 0; i < 3; i++)
-    {
-        /* code */
-    
-    
-        init_poisson(&p[i], 0);
 
-        pthread_create(&p_poisson[i], NULL, routine_poisson, &p[i]);
-    
-    }
 
     /* Attente d'une connexion */
     printf("Serveur : attente de connexion...\n");
@@ -196,49 +168,21 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    if (read(sockclient, &type, sizeof(long)) == -1)
+    if ((sockclient2 = accept(fd, NULL, NULL)) == -1)
     {
-        perror("Erreur lors de la lecture de la taille du message ");
+        perror("Erreur lors de la demande de connexion ");
         exit(EXIT_FAILURE);
     }
 
-    switch (type)
+    if (write(sockclient ,&taille,sizeof(taille))==-1 )
     {
-    case 4:
-        if (read(sockclient, &action, sizeof(action_t)) == -1)
-        {
-            perror("Erreur lors de la lecture de la taille du message ");
-            exit(EXIT_FAILURE);
-        }
-        printf("On vient de poser une canne a la position : %d\n", action.position);
-        break;
-    case 3:
-        if (read(sockclient, &action, sizeof(action_t)) == -1)
-        {
-            perror("Erreur lors de la lecture de la taille du message ");
-            exit(EXIT_FAILURE);
-        }
-        printf("On vient de poser un bonus a la position : %d\n", action.position);
-
-        modif_etang(etang, action.position, action.position, action.id_action);
-
-        break;
-    case 5:
-        if (read(sockclient, &victoire.j, sizeof(joueur_t)) == -1)
-        {
-            perror("Erreur lors de la lecture de la taille du message ");
-            exit(EXIT_FAILURE);
-        }
-        vict++;
-        printf("Bravo au Joueur %d\n", victoire.j.num);
-        break;
+        perror("Erreur lors de l'envoie de la taille 1 ");
+        exit(EXIT_FAILURE);
     }
-    
-    for ( i = 0; i < largeur; i++)
+    if (write(sockclient2 ,&taille,sizeof(taille))==-1 )
     {
-        /* code */
-    
-        pthread_join(p_poisson[i], NULL);
+        perror("Erreur lors de l'envoie de la taille 1 ");
+        exit(EXIT_FAILURE);
     }
     
     
@@ -249,20 +193,21 @@ int main(int argc, char *argv[])
         perror("Erreur lors de la fermeture de la socket de communication ");
         exit(EXIT_FAILURE);
     }
+    if (close(sockclient2) == -1)
+    {
+        perror("Erreur lors de la fermeture de la socket de communication ");
+        exit(EXIT_FAILURE);
+    }
     if (close(fd) == -1)
     {
         perror("Erreur lors de la fermeture de la socket de connexion ");
         exit(EXIT_FAILURE);
     }
 
-    /* Suppression du segment de memoire partagee */
-    if (shmctl(shmid, IPC_RMID, 0) == -1)
-    {
-        perror("Erreur lors de la suppression du segment de memoire partagee ");
-        exit(EXIT_FAILURE);
-    }
+
 
     printf("Serveur terminé.\n");
+    free(etang);
 
     return EXIT_SUCCESS;
 }

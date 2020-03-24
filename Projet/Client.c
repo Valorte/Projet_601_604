@@ -4,10 +4,8 @@ int main(int argc, char *argv[])
 {
     requete_t connex;
     reponse_t reponse;
-    /*victoire_t victoire;*/
-    action_t action;
     joueur_t j;
-    int sockfd, fd;
+    int sockfd, fd, taille;
     struct sockaddr_in adresseServeur;
     /* Vérification des arguments */
     if (argc != 3)
@@ -84,35 +82,17 @@ int main(int argc, char *argv[])
         perror("Erreur lors de la connexion ");
         exit(EXIT_FAILURE);
     }
+    taille = 0;
+    while (taille == 0)
+    {
+        if (read(fd, &taille, sizeof(int)) == -1)
+        {
+            perror("Erreur lors de la lecture de la taille ");
+            exit(EXIT_FAILURE);
+        }
+    }
 
-    /*victoire.type = TYPE_VICTOIRE;
-    victoire.j = j;
-    printf("Dans victoire :%d\n",victoire.j.num);
-    if (write(fd, &victoire.type, sizeof(long)) == -1)
-    {
-        perror("Erreur lors du type de message ");
-        exit(EXIT_FAILURE);
-    }
-    if (write(fd, &victoire.j, sizeof(joueur_t)) == -1)
-    {
-        perror("Erreur lors de l'envoi du message ");
-        exit(EXIT_FAILURE);
-    }*/
-
-    action.type = TYPE_BONUS;
-    action.id_action = 6;
-    action.position = 10;
-    if (write(fd, &action.type, sizeof(long)) == -1)
-    {
-        perror("Erreur lors du type de message ");
-        exit(EXIT_FAILURE);
-    }
-    if (write(fd, &action, sizeof(action_t)) == -1)
-    {
-        perror("Erreur lors de l'envoi du message ");
-        exit(EXIT_FAILURE);
-    }
-    printf("Client : message envoyé.\n");
+    printf("taille de l'etang  : %d",taille);
 
     /* Fermeture de la socket */
     if (close(fd) == -1)
