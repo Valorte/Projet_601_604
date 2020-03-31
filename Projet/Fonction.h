@@ -1,5 +1,6 @@
 #ifndef FONCTION
 #define FONCTION
+#include <ncurses.h>
 #include <pthread.h>
 #include <stdlib.h>     /* Pour exit, EXIT_FAILURE, EXIT_SUCCESS */
 #include <stdio.h>      /* Pour printf, fprintf, perror */
@@ -23,6 +24,11 @@ void modif_etang(int* etang , int p , int s , int val);
 void deplacement_poisson(int* etang,poisson_t* p,int largeur ,int longueur);
 void ajouter_requete(file_t* f,requete_t* r);
 void supprimer_requete(file_t* f,requete_t* r);
+void ajouter_action(file_t* f,action_t* r);
+void supprimer_action(file_t* f,action_t* r);
+action_t lire_action(file_t* f);
+void envoie_info(int sockclient  ,int *etang , int longueur , int largeur,int envoie);
+void recevoir_info(int fd , int* etang ,int longueur, int largeur);
 
 
 #endif

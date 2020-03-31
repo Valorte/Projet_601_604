@@ -42,12 +42,12 @@ void afficher_etang(int *etang, int largeur, int longueur)
         printf("\n");
     }
 }
-void init_poisson(poisson_t *p ,int val)
+void init_poisson(poisson_t *p, int val)
 {
     int v;
-    p->id=val;
+    p->id = val;
     p->etat = 0;
-    p->pos=0;
+    p->pos = 0;
 
     v = (rand() % 99);
     if (v < 65)
@@ -67,7 +67,7 @@ void generer_poison(int *etang, int largeur, int longueur, poisson_t *p)
 {
     int i;
     srand(time(NULL));
-    init_poisson(p,0);
+    init_poisson(p, 0);
     i = rand() % longueur * largeur;
 
     while (etang[i] != 0)
@@ -76,7 +76,6 @@ void generer_poison(int *etang, int largeur, int longueur, poisson_t *p)
     }
     p->pos = i;
     etang[i] = p->valeur;
-    printf("\nNouvelle valeur dasn l'etang : %d\n",etang[i]);
 }
 
 void modif_etang(int *etang, int p, int s, int val)
@@ -85,56 +84,153 @@ void modif_etang(int *etang, int p, int s, int val)
     etang[s] = val;
 }
 
-void ajouter_requete(file_t* f,requete_t* r){
-    f->file[f->indice_tete]=*r;
+void ajouter_requete(file_t *f, requete_t *r)
+{
+    f->type.file_q[f->indice_tete] = *r;
     f->indice_tete++;
-    if (f->indice_tete==50)
+    if (f->indice_tete == 50)
     {
-        f->indice_tete=0;
+        f->indice_tete = 0;
     }
-    
 }
 
-void supprimer_requete(file_t* f,requete_t* r){
-    f->file[f->indice_tete]=*r;
+void supprimer_requete(file_t *f, requete_t *r)
+{
+    f->type.file_q[f->indice_tete] = *r;
     f->indice_queue++;
-    if (f->indice_queue==50)
+    if (f->indice_queue == 50)
     {
-        f->indice_queue=0;
+        f->indice_queue = 0;
     }
 }
 
-void deplacement_poisson(int* etang,poisson_t* p,int largeur ,int longueur){
+void ajouter_action(file_t *f, action_t *r)
+{
+    f->type.file_a[f->indice_tete] = *r;
+    f->indice_tete++;
+    if (f->indice_tete == 50)
+    {
+        f->indice_tete = 0;
+    }
+}
+
+void supprimer_action(file_t *f, action_t *r)
+{
+    f->type.file_a[f->indice_tete] = *r;
+    f->indice_queue++;
+    if (f->indice_queue == 50)
+    {
+        f->indice_queue = 0;
+    }
+}
+void deplacement_poisson(int *etang, poisson_t *p, int largeur, int longueur)
+{
     int r;
-    etang[p->pos]=0;
+    etang[p->pos] = 0;
 
-    r=rand()%4;
+    r = rand() % 4;
 
-    printf("\nrand : %d\n",r);
+    printf("\nrand : %d\n", r);
     switch (r)
     {
     case 0:
-        if (p->pos>0)
+        if (p->pos > 0)
         {
             p->pos--;
         }
         break;
     case 1:
-        if (p->pos<(largeur*longueur)-1)
+        if (p->pos < (largeur * longueur) - 1)
         {
             p->pos++;
         }
         break;
-    case 2: 
-        if(p->pos<(largeur*longueur)-largeur){
-            p->pos+=largeur;
+    case 2:
+        if (p->pos < (largeur * longueur) - largeur)
+        {
+            p->pos += largeur;
         }
-        break;    
-    case 3: 
-        if(p->pos>=largeur){
-            p->pos-=largeur;
+        break;
+    case 3:
+        if (p->pos >= largeur)
+        {
+            p->pos -= largeur;
         }
         break;
     }
+}
+/**
+ * @param envoie 1 pour envoyé la carte avec la longueur et la largeur 
+ **/
+void envoie_info(int sockclient, int *etang, int longueur, int largeur, int envoie)
+{
+    if (envoie == 1)
+    {
+        if (write(sockclient, &longueur, sizeof(longueur)) == -1)
+        {
+            perror("Erreur lors de l'envoie de la longueur  ");
+            exit(EXIT_FAILURE);
+        }
 
+        if (write(sockclient, &largeur, sizeof(largeur)) == -1)
+        {
+            perror("Erreur lors de l'envoie de la largeur 1 ");
+            exit(EXIT_FAILURE);
+        }
+
+        if (write(sockclient, etang, sizeof(int) * longueur * largeur) == -1)
+        {
+            perror("Erreur lors de l'envoie de l'etang 1 ");
+            exit(EXIT_FAILURE);
+        }
+    }
+    else
+    {
+        if (write(sockclient, etang, sizeof(int) * longueur * largeur) == -1)
+        {
+            perror("Erreur lors de l'envoie de l'etang  2 ");
+            exit(EXIT_FAILURE);
+        }
+    }
+}
+
+void recevoir_info(int fd, int *etang, int longueur, int largeur)
+{
+
+    printf("Recevoir");
+    while (longueur == 0)
+    {
+        if (read(fd, &longueur, sizeof(int)) == -1)
+        {
+            perror("Erreur lors de la recpetion de la longueur ");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    while (largeur == 0)
+    {
+        if (read(fd, &largeur, sizeof(int)) == -1)
+        {
+            perror("Erreur lors de la reception de la largeur ");
+            exit(EXIT_FAILURE);
+        }
+    }
+    printf("largeur : %d", largeur);
+    etang = malloc(sizeof(int) * (longueur * largeur));
+
+    if (read(fd, &etang, sizeof(int) * longueur * largeur) == -1)
+    {
+        perror("Erreur lors de la reception de l'etang ");
+        exit(EXIT_FAILURE);
+    }
+}
+
+action_t lire_action(file_t* f){
+
+    action_t tmp;
+
+    tmp=f->type.file_a[f->indice_queue];
+    f->indice_queue++;
+
+    return tmp;
 }
