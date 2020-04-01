@@ -2,12 +2,36 @@
 #define STRUCT
 #define MAX_POISSON 10
 
-typedef struct etang_t{
-    int* etang;
-    int longueur;
-    int largeur;
+#define TYPE_BONUS 3
+#define TYPE_CANNE 4
+typedef struct action_t
+{
+    long type;
+    int id_action;
+    int position;
+}action_t;
 
-}etang_t;
+typedef struct poisson_t
+{
+    int valeur;
+    int pos;
+    int etat; 
+    int id;
+}poisson_t;
+
+typedef struct case_t
+{
+    int nb;
+    int joueur;
+    int type_case;
+    union 
+    {
+        poisson_t* p;
+        action_t* a;
+        
+    }objet;
+    
+}case_t;
 
 
 typedef struct joueur_t
@@ -19,13 +43,7 @@ typedef struct joueur_t
 }joueur_t;
 
 
-typedef struct poisson_t
-{
-    int valeur;
-    int pos;
-    int etat; 
-    int id;
-}poisson_t;
+
 
 typedef struct plateau_t
 {
@@ -50,14 +68,7 @@ typedef struct reponse_t
     int id;
 }reponse_t;
 
-#define TYPE_BONUS 3
-#define TYPE_CANNE 4
-typedef struct action_t
-{
-    long type;
-    int id_action;
-    int position;
-}action_t;
+
 
 #define TYPE_VICTOIRE 5
 typedef struct victoire_t

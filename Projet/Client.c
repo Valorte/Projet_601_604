@@ -5,9 +5,10 @@ int main(int argc, char *argv[])
     requete_t connex;
     reponse_t reponse;
     action_t bonus;
+    action_t canne;
     joueur_t j;
-    int *etang;
-    int sockfd, fd, longueur = 0, largeur = 0, i;
+    case_t *etang;
+    int sockfd, fd, longueur = 0, largeur = 0, choix;
     struct sockaddr_in adresseServeur;
     /* Vérification des arguments */
     if (argc != 3)
@@ -105,21 +106,15 @@ int main(int argc, char *argv[])
     }
     printf("\nLongueur : %d , largeur : %d\n", longueur, largeur);
 
-    etang = malloc(sizeof(int) * (longueur * largeur));
-    for (i = 0; i < longueur * largeur; i++)
-    {
-        etang[i] = -1;
-    }
+    etang = malloc(sizeof(case_t) * (longueur * largeur));
 
-    if (read(fd, etang, sizeof(int) * longueur * largeur) == -1)
+    if (read(fd, etang, sizeof(case_t) * longueur * largeur) == -1)
     {
         perror("Erreur lors de la reception de la largeur ");
         exit(EXIT_FAILURE);
     }
 
     afficher_etang(etang, largeur, longueur);
-
-    
 
     printf("On mets un bonus a la case 6");
 
@@ -137,20 +132,41 @@ int main(int argc, char *argv[])
         perror("Erreur lors de l'envoie de la largeur 1 ");
         exit(EXIT_FAILURE);
     }
-    
+
     while (1)
     {
-    printf("\n");
-    
-    while (read(fd, etang, sizeof(int) * longueur * largeur) == 0)
-    {
-        if (read(fd, etang, sizeof(int) * longueur * largeur) == -1)
-        {
-            perror("Erreur lors de la reception de la largeur ");
+
+        printf("Où placer votre ameçon ?\n");
+        if(scanf("%d", &choix)==-1){
             exit(EXIT_FAILURE);
         }
-    }
-    afficher_etang(etang, largeur, longueur);
+
+        canne.type = TYPE_CANNE;
+        canne.id_action = j.num;
+        canne.position = choix;
+
+        if (write(fd, &canne.type, sizeof(long)) == -1)
+        {
+            perror("Erreur lors de l'envoie de l'etang 1 ");
+            exit(EXIT_FAILURE);
+        }
+
+        if (write(fd, &canne, sizeof(action_t)) == -1)
+        {
+            perror("Erreur lors de l'envoie de l'etang 1 ");
+            exit(EXIT_FAILURE);
+        }
+        printf("\n");
+
+        while (read(fd, etang, sizeof(case_t) * longueur * largeur) == 0)
+        {
+            if (read(fd, etang, sizeof(case_t) * longueur * largeur) == -1)
+            {
+                perror("Erreur lors de la reception de la largeur ");
+                exit(EXIT_FAILURE);
+            }
+        }
+        afficher_etang(etang, largeur, longueur);
     }
 
     /* Fermeture de la socket */

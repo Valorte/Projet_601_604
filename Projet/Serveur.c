@@ -1,26 +1,24 @@
 #include "Fonction.h"
 
 pthread_mutex_t mutex_etang = PTHREAD_MUTEX_INITIALIZER;
-pthread_t p_poisson;
-int vict = 0,sockclient, sockclient2;
-int *etang;
+pthread_t p_poisson[2];
+int vict = 0, sockclient, sockclient2;
+case_t *etang;
 int longueur, largeur, nbpoisson;
-
 
 void *routine_poisson(void *args)
 {
-    int i = 0, p;
+    int i = 0;
     poisson_t *tmp = (void *)args;
-    while (i != 15)
+    while (vict == 0)
     {
-        p = tmp->pos;
-        deplacement_poisson(etang, tmp, largeur, longueur);
+
         pthread_mutex_lock(&mutex_etang);
-        modif_etang(etang, p, tmp->pos, tmp->valeur);
+        deplacement_poisson(etang, tmp, largeur, longueur);
         pthread_mutex_unlock(&mutex_etang);
-        envoie_info(sockclient,etang,longueur,largeur,0);
-        envoie_info(sockclient2,etang,longueur,largeur,0);
-        sleep(1);
+        envoie_info(sockclient, etang, longueur, largeur, 0);
+        envoie_info(sockclient2, etang, longueur, largeur, 0);
+        sleep(3);
         i++;
     }
 
@@ -35,7 +33,7 @@ int main(int argc, char *argv[])
     action_t action;
     victoire_t victoire;
     long type;
-    poisson_t poisson;
+    poisson_t poisson[2];
     file_t file_requete;
     int sockfd, i = 0, fd, j, k = 0, taille;
     struct sockaddr_in adresseServeur;
@@ -109,27 +107,25 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    /* Fermeture de la socket */
-    if (close(sockfd) == -1)
-    {
-        perror("Erreur lors de la fermeture de la socket ");
-        exit(EXIT_FAILURE);
-    }
     longueur = atoi(argv[2]);
     largeur = atoi(argv[3]);
     taille = longueur * largeur;
-    etang = malloc(sizeof(int) * taille);
+    etang = malloc(sizeof(case_t) * taille);
     for (i = 0; i < longueur; i++)
     {
         for (j = 0; j < largeur; j++)
         {
-            etang[k] = 0;
+            etang[k].nb = 0;
+            etang[k].joueur = 0;
+            etang[k].type_case = 0;
             k++;
         }
     }
 
-    generer_poison(etang,largeur,longueur,&poisson);
-    pthread_create(&p_poisson,NULL,routine_poisson,&poisson);
+    generer_poison(etang, largeur, longueur, &poisson[0], 1);
+    generer_poison(etang, largeur, longueur, &poisson[1], 3);
+    pthread_create(&p_poisson[0], NULL, routine_poisson, &poisson[0]);
+    pthread_create(&p_poisson[1], NULL, routine_poisson, &poisson[1]);
 
     /* Création de l'adresse du serveur */
     memset(&adresseServeur, 0, sizeof(struct sockaddr_in));
@@ -164,52 +160,59 @@ int main(int argc, char *argv[])
         perror("Erreur lors de la demande de connexion ");
         exit(EXIT_FAILURE);
     }
-    
-    envoie_info(sockclient,etang,longueur,largeur,1);
-    envoie_info(sockclient2,etang,longueur,largeur,1);
 
-    if (read(sockclient, &type, sizeof(long)) == -1)
+    envoie_info(sockclient, etang, longueur, largeur, 1);
+    envoie_info(sockclient2, etang, longueur, largeur, 1);
+
+    while (vict == 0)
     {
-        perror("Erreur lors de la lecture de la taille du message ");
-        exit(EXIT_FAILURE);
+        if (read(sockclient, &type, sizeof(long)) == -1)
+        {
+            perror("Erreur lors de la lecture de la taille du message ");
+            exit(EXIT_FAILURE);
+        }
+
+        switch (type)
+        {
+        case 4:
+            if (read(sockclient, &action, sizeof(action_t)) == -1)
+            {
+                perror("Erreur lors de la lecture de la taille du message ");
+                exit(EXIT_FAILURE);
+            }
+            printf("On vient de poser une canne a la position : %d\n", action.position);
+            ajouter_canne(etang,&action,action.position);
+            if (action.position==-1)
+            {
+                vict++;
+            }
+            
+            break;
+        case 3:
+            if (read(sockclient, &action, sizeof(action_t)) == -1)
+            {
+                perror("Erreur lors de la lecture de la taille du message ");
+                exit(EXIT_FAILURE);
+            }
+            printf("On vient de poser un bonus a la position : %d\n", action.position);
+
+            break;
+        case 5:
+            if (read(sockclient, &victoire.j, sizeof(joueur_t)) == -1)
+            {
+                perror("Erreur lors de la lecture de la taille du message ");
+                exit(EXIT_FAILURE);
+            }
+            vict++;
+            printf("Bravo au Joueur %d\n", victoire.j.num);
+            break;
+        }
+        envoie_info(sockclient, etang, longueur, largeur, 0);
+        envoie_info(sockclient2, etang, longueur, largeur, 0);
     }
 
-    switch (type)
-    {
-    case 4:
-        if (read(sockclient, &action, sizeof(action_t)) == -1)
-        {
-            perror("Erreur lors de la lecture de la taille du message ");
-            exit(EXIT_FAILURE);
-        }
-        printf("On vient de poser une canne a la position : %d\n", action.position);
-        break;
-    case 3:
-        if (read(sockclient, &action, sizeof(action_t)) == -1)
-        {
-            perror("Erreur lors de la lecture de la taille du message ");
-            exit(EXIT_FAILURE);
-        }
-        printf("On vient de poser un bonus a la position : %d\n", action.position);
-
-        modif_etang(etang, action.position, action.position, action.id_action);
-
-        break;
-    case 5:
-        if (read(sockclient, &victoire.j, sizeof(joueur_t)) == -1)
-        {
-            perror("Erreur lors de la lecture de la taille du message ");
-            exit(EXIT_FAILURE);
-        }
-        vict++;
-        printf("Bravo au Joueur %d\n", victoire.j.num);
-        break;
-    }
-
-
-    
-    
-    pthread_join(p_poisson,NULL);
+    pthread_join(p_poisson[0], NULL);
+    pthread_join(p_poisson[1], NULL);
     /* Fermeture des sockets */
     if (close(sockclient) == -1)
     {
@@ -224,6 +227,12 @@ int main(int argc, char *argv[])
     if (close(fd) == -1)
     {
         perror("Erreur lors de la fermeture de la socket de connexion ");
+        exit(EXIT_FAILURE);
+    }
+    /* Fermeture de la socket */
+    if (close(sockfd) == -1)
+    {
+        perror("Erreur lors de la fermeture de la socket ");
         exit(EXIT_FAILURE);
     }
 

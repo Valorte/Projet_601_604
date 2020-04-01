@@ -17,18 +17,21 @@
 void init_joueur(int i , joueur_t* j);
 void envoie_message(int sockfd, void* msg ,struct sockaddr_in adresseServeur);
 void recevoir_message(int sockfd , int* msg, void *sa, void* sl);
-void afficher_etang(int* etang , int largeur ,int longueur );
-void generer_poison(int* etang , int largeur , int longueur , poisson_t* p);
-void init_poisson(poisson_t* p,int val);
-void modif_etang(int* etang , int p , int s , int val);
-void deplacement_poisson(int* etang,poisson_t* p,int largeur ,int longueur);
+void afficher_etang(case_t* etang , int largeur ,int longueur );
+void vider_case(case_t* etang);
+void changer_case(case_t* etang , int type , int nb , int joueur);
+void generer_poison(case_t* etang , int largeur , int longueur , poisson_t* p,int id);
+void init_poisson(poisson_t* p,int id);
+void deplacement_poisson(case_t* etang,poisson_t* p,int largeur ,int longueur);
 void ajouter_requete(file_t* f,requete_t* r);
 void supprimer_requete(file_t* f,requete_t* r);
 void ajouter_action(file_t* f,action_t* r);
 void supprimer_action(file_t* f,action_t* r);
 action_t lire_action(file_t* f);
-void envoie_info(int sockclient  ,int *etang , int longueur , int largeur,int envoie);
-void recevoir_info(int fd , int* etang ,int longueur, int largeur);
+void envoie_info(int sockclient  ,case_t *etang , int longueur , int largeur,int envoie);
+void recevoir_info(int fd , case_t* etang ,int longueur, int largeur);
+void ajouter_canne(case_t* etang ,action_t* canne , int position);
+
 
 
 #endif

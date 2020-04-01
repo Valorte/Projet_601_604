@@ -28,7 +28,7 @@ void recevoir_message(int sockfd, int *msg, void *sa, void *sl)
     printf("%d", *msg);
 }
 
-void afficher_etang(int *etang, int largeur, int longueur)
+void afficher_etang(case_t *etang, int largeur, int longueur)
 {
     int i, j, k = 0;
 
@@ -36,16 +36,16 @@ void afficher_etang(int *etang, int largeur, int longueur)
     {
         for (j = 0; j < largeur; j++)
         {
-            printf("%d", etang[k]);
+            printf("%d", etang[k].nb);
             k++;
         }
         printf("\n");
     }
 }
-void init_poisson(poisson_t *p, int val)
+void init_poisson(poisson_t *p, int id)
 {
     int v;
-    p->id = val;
+    p->id = id;
     p->etat = 0;
     p->pos = 0;
 
@@ -63,25 +63,19 @@ void init_poisson(poisson_t *p, int val)
         p->valeur = 2;
     }
 }
-void generer_poison(int *etang, int largeur, int longueur, poisson_t *p)
+void generer_poison(case_t *etang, int largeur, int longueur, poisson_t *p, int id)
 {
     int i;
     srand(time(NULL));
-    init_poisson(p, 0);
+    init_poisson(p, id);
     i = rand() % longueur * largeur;
 
-    while (etang[i] != 0)
+    while (etang[i].nb != 0)
     {
         i = rand() % longueur * largeur;
     }
     p->pos = i;
-    etang[i] = p->valeur;
-}
-
-void modif_etang(int *etang, int p, int s, int val)
-{
-    etang[p] = 0;
-    etang[s] = val;
+    etang[i].objet.p = p;
 }
 
 void ajouter_requete(file_t *f, requete_t *r)
@@ -123,10 +117,10 @@ void supprimer_action(file_t *f, action_t *r)
         f->indice_queue = 0;
     }
 }
-void deplacement_poisson(int *etang, poisson_t *p, int largeur, int longueur)
+void deplacement_poisson(case_t *etang, poisson_t *p, int largeur, int longueur)
 {
     int r;
-    etang[p->pos] = 0;
+    vider_case(&etang[p->pos]);
 
     r = rand() % 4;
 
@@ -134,35 +128,38 @@ void deplacement_poisson(int *etang, poisson_t *p, int largeur, int longueur)
     switch (r)
     {
     case 0:
-        if (p->pos > 0)
+        if (p->pos > 0 && &etang[(p->pos)-1]==0)
         {
             p->pos--;
         }
         break;
     case 1:
-        if (p->pos < (largeur * longueur) - 1)
+        if (p->pos < (largeur * longueur) - 1 && &etang[(p->pos)+1])
         {
             p->pos++;
         }
         break;
     case 2:
-        if (p->pos < (largeur * longueur) - largeur)
+        if (p->pos < (largeur * longueur) - largeur && &etang[(p->pos)+largeur])
         {
             p->pos += largeur;
         }
         break;
     case 3:
-        if (p->pos >= largeur)
+        if (p->pos >= largeur && &etang[(p->pos)-largeur])
         {
             p->pos -= largeur;
         }
         break;
     }
+    changer_case(&etang[p->pos],1,p->id,0);
+    etang[p->pos].objet.p=p;
+    
 }
 /**
  * @param envoie 1 pour envoyé la carte avec la longueur et la largeur 
  **/
-void envoie_info(int sockclient, int *etang, int longueur, int largeur, int envoie)
+void envoie_info(int sockclient, case_t *etang, int longueur, int largeur, int envoie)
 {
     if (envoie == 1)
     {
@@ -178,7 +175,7 @@ void envoie_info(int sockclient, int *etang, int longueur, int largeur, int envo
             exit(EXIT_FAILURE);
         }
 
-        if (write(sockclient, etang, sizeof(int) * longueur * largeur) == -1)
+        if (write(sockclient, etang, sizeof(case_t) * longueur * largeur) == -1)
         {
             perror("Erreur lors de l'envoie de l'etang 1 ");
             exit(EXIT_FAILURE);
@@ -186,7 +183,7 @@ void envoie_info(int sockclient, int *etang, int longueur, int largeur, int envo
     }
     else
     {
-        if (write(sockclient, etang, sizeof(int) * longueur * largeur) == -1)
+        if (write(sockclient, etang, sizeof(case_t) * longueur * largeur) == -1)
         {
             perror("Erreur lors de l'envoie de l'etang  2 ");
             exit(EXIT_FAILURE);
@@ -194,7 +191,7 @@ void envoie_info(int sockclient, int *etang, int longueur, int largeur, int envo
     }
 }
 
-void recevoir_info(int fd, int *etang, int longueur, int largeur)
+void recevoir_info(int fd, case_t *etang, int longueur, int largeur)
 {
 
     printf("Recevoir");
@@ -216,9 +213,9 @@ void recevoir_info(int fd, int *etang, int longueur, int largeur)
         }
     }
     printf("largeur : %d", largeur);
-    etang = malloc(sizeof(int) * (longueur * largeur));
+    etang = malloc(sizeof(case_t) * (longueur * largeur));
 
-    if (read(fd, &etang, sizeof(int) * longueur * largeur) == -1)
+    if (read(fd, &etang, sizeof(case_t) * longueur * largeur) == -1)
     {
         perror("Erreur lors de la reception de l'etang ");
         exit(EXIT_FAILURE);
@@ -233,4 +230,24 @@ action_t lire_action(file_t* f){
     f->indice_queue++;
 
     return tmp;
+}
+
+void vider_case(case_t* etang){
+    etang->joueur=0;
+    etang->nb=0;
+    etang->type_case=0;
+    etang->objet.p=NULL;
+}
+
+void changer_case(case_t* etang , int type , int nb , int joueur){
+    etang->joueur=joueur;
+    etang->type_case=type;
+    etang->nb=nb;
+}
+
+void ajouter_canne(case_t* etang ,action_t* canne , int position){
+    etang[position].objet.a=canne;
+    etang[position].joueur=canne->id_action;
+    etang[position].type_case=TYPE_CANNE;
+    etang[position].nb=3;
 }
