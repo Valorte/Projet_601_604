@@ -1,15 +1,83 @@
 #include "Struct.h"
 #include "Fonction.h"
+
+int fd, hauteur = 0, largeur = 0;
+case_t *etang;
+WINDOW *fenetre_joueur;
+WINDOW *sous_fenetre_joueur;
+WINDOW *fenetre_simulation;
+WINDOW *sous_fenetre_simulation;
+void *affichage(void *args)
+{
+    int test = 0;
+    ncurses_initialisation();
+    ncurses_souris();
+    ncurses_couleurs();
+
+    while (hauteur == 0)
+    {
+
+        if (read(fd, &hauteur, sizeof(int)) == -1)
+        {
+            perror("Erreur lors de la recpetion de la hauteur ");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    while (largeur == 0)
+    {
+        if (read(fd, &largeur, sizeof(int)) == -1)
+        {
+            perror("Erreur lors de la reception de la largeur ");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    /**
+     * Fenêtre information
+     */
+    fenetre_joueur = creer_fenetre(5, COLS, 0, 0, 1);
+    wbkgd(fenetre_joueur, COLOR_PAIR(1));
+    mvwprintw(fenetre_joueur, 0, 1, "Infos");
+
+    sous_fenetre_joueur = creer_sous_fenetre(sous_fenetre_joueur, 4 - 1, COLS - 2, 1, 1);
+    /**
+     * Fenêtre simulation
+     */
+    fenetre_simulation = creer_fenetre(15 + 2, 30 + 3, 5, 0, 1);
+    wbkgd(fenetre_simulation, COLOR_PAIR(1));
+    mvwprintw(fenetre_simulation, 0, 1, "Peche");
+    sous_fenetre_simulation = creer_sous_fenetre(fenetre_simulation, 15, 30, 1, 1);
+    etang = malloc(sizeof(case_t) * (hauteur * largeur));
+    while (1)
+    {
+        while (test == 0)
+        {
+
+            if ((test = read(fd, etang, sizeof(case_t) * hauteur * largeur)) == -1)
+            {
+                perror("Erreur lors de la reception de la largeur ");
+                exit(EXIT_FAILURE);
+            }
+        }
+        afficher_etang(etang, largeur, hauteur, sous_fenetre_simulation);
+        wrefresh(fenetre_simulation);
+        wrefresh(sous_fenetre_simulation);
+
+        test = 0;
+    }
+
+    return NULL;
+}
+
 int main(int argc, char *argv[])
 {
     requete_t connex;
     reponse_t reponse;
-    action_t bonus;
-    action_t canne;
+    pthread_t aff;
     joueur_t j;
-    case_t *etang;
-    int sockfd, fd, longueur = 0, largeur = 0, choix;
     struct sockaddr_in adresseServeur;
+    int sockfd;
     /* Vérification des arguments */
     if (argc != 3)
     {
@@ -85,89 +153,11 @@ int main(int argc, char *argv[])
         perror("Erreur lors de la connexion ");
         exit(EXIT_FAILURE);
     }
-    /*recevoir_info(fd,etang,longueur,largeur);*/
 
-    while (longueur == 0)
-    {
-        if (read(fd, &longueur, sizeof(int)) == -1)
-        {
-            perror("Erreur lors de la recpetion de la longueur ");
-            exit(EXIT_FAILURE);
-        }
-    }
+    pthread_create(&aff, NULL, affichage, NULL);
 
-    while (largeur == 0)
-    {
-        if (read(fd, &largeur, sizeof(int)) == -1)
-        {
-            perror("Erreur lors de la reception de la largeur ");
-            exit(EXIT_FAILURE);
-        }
-    }
-    printf("\nLongueur : %d , largeur : %d\n", longueur, largeur);
 
-    etang = malloc(sizeof(case_t) * (longueur * largeur));
-
-    if (read(fd, etang, sizeof(case_t) * longueur * largeur) == -1)
-    {
-        perror("Erreur lors de la reception de la largeur ");
-        exit(EXIT_FAILURE);
-    }
-
-    afficher_etang(etang, largeur, longueur);
-
-    printf("On mets un bonus a la case 6");
-
-    bonus.type = TYPE_BONUS;
-    bonus.position = 6;
-    bonus.id_action = 8;
-
-    if (write(fd, &bonus.type, sizeof(long)) == -1)
-    {
-        perror("Erreur lors de l'envoie de la largeur 1 ");
-        exit(EXIT_FAILURE);
-    }
-    if (write(fd, &bonus, sizeof(action_t)) == -1)
-    {
-        perror("Erreur lors de l'envoie de la largeur 1 ");
-        exit(EXIT_FAILURE);
-    }
-
-    while (1)
-    {
-
-        printf("Où placer votre ameçon ?\n");
-        if(scanf("%d", &choix)==-1){
-            exit(EXIT_FAILURE);
-        }
-
-        canne.type = TYPE_CANNE;
-        canne.id_action = j.num;
-        canne.position = choix;
-
-        if (write(fd, &canne.type, sizeof(long)) == -1)
-        {
-            perror("Erreur lors de l'envoie de l'etang 1 ");
-            exit(EXIT_FAILURE);
-        }
-
-        if (write(fd, &canne, sizeof(action_t)) == -1)
-        {
-            perror("Erreur lors de l'envoie de l'etang 1 ");
-            exit(EXIT_FAILURE);
-        }
-        printf("\n");
-
-        while (read(fd, etang, sizeof(case_t) * longueur * largeur) == 0)
-        {
-            if (read(fd, etang, sizeof(case_t) * longueur * largeur) == -1)
-            {
-                perror("Erreur lors de la reception de la largeur ");
-                exit(EXIT_FAILURE);
-            }
-        }
-        afficher_etang(etang, largeur, longueur);
-    }
+    pthread_join(aff, NULL);
 
     /* Fermeture de la socket */
     if (close(fd) == -1)
@@ -175,6 +165,10 @@ int main(int argc, char *argv[])
         perror("Erreur lors de la fermeture de la socket ");
         exit(EXIT_FAILURE);
     }
+
+    delwin(fenetre_simulation);
+    delwin(sous_fenetre_simulation);
+    ncurses_stopper();
 
     return EXIT_SUCCESS;
 }

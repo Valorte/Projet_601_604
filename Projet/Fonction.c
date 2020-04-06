@@ -8,39 +8,21 @@ void init_joueur(int i, joueur_t *j)
     j->argent = 0;
     j->point = 0;
 }
-void envoie_message(int sockfd, void *msg, struct sockaddr_in adresseServeur)
-{
-    /* Envoi du message */
-    if (sendto(sockfd, &msg, sizeof(msg), 0, (struct sockaddr *)&adresseServeur, sizeof(struct sockaddr_in)) == -1)
-    {
-        perror("Erreur lors de l'envoi du message ");
-        exit(EXIT_FAILURE);
-    }
-}
 
-void recevoir_message(int sockfd, int *msg, void *sa, void *sl)
-{
-    if (recvfrom(sockfd, &msg, sizeof(msg), 0, sa, sl) == -1)
-    {
-        perror("Erreur lors de la réception du message ");
-        exit(EXIT_FAILURE);
-    }
-    printf("%d", *msg);
-}
 
-void afficher_etang(case_t *etang, int largeur, int longueur)
+void afficher_etang(case_t *etang, int largeur, int longueur , WINDOW* fenetre)
 {
     int i, j, k = 0;
-
     for (i = 0; i < longueur; i++)
     {
         for (j = 0; j < largeur; j++)
         {
-            printf("%d", etang[k].nb);
+            mvwprintw(fenetre, i, j,"%d" ,etang[k].nb);
             k++;
         }
         printf("\n");
     }
+    
 }
 void init_poisson(poisson_t *p, int id)
 {
@@ -78,9 +60,9 @@ void generer_poison(case_t *etang, int largeur, int longueur, poisson_t *p, int 
     etang[i].objet.p = p;
 }
 
-void ajouter_requete(file_t *f, requete_t *r)
+void ajouter_requete(file_requete_t *f, requete_t *r)
 {
-    f->type.file_q[f->indice_tete] = *r;
+    f->r[f->indice_tete] = *r;
     f->indice_tete++;
     if (f->indice_tete == 50)
     {
@@ -88,9 +70,9 @@ void ajouter_requete(file_t *f, requete_t *r)
     }
 }
 
-void supprimer_requete(file_t *f, requete_t *r)
+void supprimer_requete(file_requete_t *f, requete_t *r)
 {
-    f->type.file_q[f->indice_tete] = *r;
+    f->r[f->indice_tete] = *r;
     f->indice_queue++;
     if (f->indice_queue == 50)
     {
@@ -98,9 +80,9 @@ void supprimer_requete(file_t *f, requete_t *r)
     }
 }
 
-void ajouter_action(file_t *f, action_t *r)
+void ajouter_action(file_action_t *f, action_t *r)
 {
-    f->type.file_a[f->indice_tete] = *r;
+    f->a[f->indice_tete] = *r;
     f->indice_tete++;
     if (f->indice_tete == 50)
     {
@@ -108,9 +90,9 @@ void ajouter_action(file_t *f, action_t *r)
     }
 }
 
-void supprimer_action(file_t *f, action_t *r)
+void supprimer_action(file_action_t *f, action_t *r)
 {
-    f->type.file_a[f->indice_tete] = *r;
+    f->a[f->indice_tete] = *r;
     f->indice_queue++;
     if (f->indice_queue == 50)
     {
@@ -123,8 +105,6 @@ void deplacement_poisson(case_t *etang, poisson_t *p, int largeur, int longueur)
     vider_case(&etang[p->pos]);
 
     r = rand() % 4;
-
-    printf("\nrand : %d\n", r);
     switch (r)
     {
     case 0:
@@ -194,7 +174,6 @@ void envoie_info(int sockclient, case_t *etang, int longueur, int largeur, int e
 void recevoir_info(int fd, case_t *etang, int longueur, int largeur)
 {
 
-    printf("Recevoir");
     while (longueur == 0)
     {
         if (read(fd, &longueur, sizeof(int)) == -1)
@@ -222,11 +201,11 @@ void recevoir_info(int fd, case_t *etang, int longueur, int largeur)
     }
 }
 
-action_t lire_action(file_t* f){
+action_t lire_action(file_action_t* f){
 
     action_t tmp;
 
-    tmp=f->type.file_a[f->indice_queue];
+    tmp=f->a[f->indice_queue];
     f->indice_queue++;
 
     return tmp;
@@ -250,4 +229,15 @@ void ajouter_canne(case_t* etang ,action_t* canne , int position){
     etang[position].joueur=canne->id_action;
     etang[position].type_case=TYPE_CANNE;
     etang[position].nb=3;
+}
+
+int file_vide(file_action_t* a){
+    if (a->indice_queue==a->indice_tete)
+    {
+        return 0;
+    }
+    else{
+        return 1;
+    }
+    
 }

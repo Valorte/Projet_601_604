@@ -3,7 +3,7 @@
 #
 
 EXEC = Serveur Client
-OBJETS = Fonction.o
+OBJETS = Fonction.o ncurses.o
 NOM_PROJET = Projet_601_604
 
 #
@@ -25,7 +25,7 @@ OBJETS_O = $(OBJETS) $(EXEC_O)
 
 CC = gcc
 CCFLAGS = -Wall -O3 -ansi -pedantic -Werror 
-CCLIBS = -lpthread
+CCLIBS = -lpthread -lncurses
 
 #
 # REGLES

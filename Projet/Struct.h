@@ -78,16 +78,21 @@ typedef struct victoire_t
 }victoire_t;
 
 
-typedef struct file_t
+typedef struct file_requete_t
 {
-    union
-    {
-        requete_t file_q[50];
-        action_t file_a[50];
-    }type;
+    requete_t r[50];
 
     int indice_tete;
     int indice_queue;
-}file_t;
+}file_requete_t;
+
+
+typedef struct file_action_t
+{
+    action_t a[50];
+
+    int indice_tete;
+    int indice_queue;
+}file_action_t;
 
 #endif
