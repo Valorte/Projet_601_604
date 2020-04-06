@@ -78,3 +78,10 @@
 
         pthread_join(p_poisson[i], NULL);
     }
+
+
+    test1 =read(socket 1)
+    test2= read(socket2)
+
+    if(test1!=0)
+    if(test2!=0)

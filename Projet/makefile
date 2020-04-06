@@ -24,12 +24,12 @@ OBJETS_O = $(OBJETS) $(EXEC_O)
 #
 
 CC = gcc
-CCFLAGS = -Wall -O3 -ansi -pedantic -Werror 
+CCFLAGS = -Wall -O3 -ansi -pedantic -Werror -D _XOPEN_SOURCE=500
 CCLIBS = -lpthread -lncurses
 
 #
 # REGLES
-#
+##define _XOPEN_SOURCE 500
 
 all: $(OBJETS) $(EXEC_O)
 	@echo "Creation des executables..."

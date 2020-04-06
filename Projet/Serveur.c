@@ -1,30 +1,74 @@
 #include "Fonction.h"
 
-pthread_mutex_t mutex_etang = PTHREAD_MUTEX_INITIALIZER;
-int vict = 0, sockclient, sockclient2;
-case_t *etang;
+int vict = 0, sockclient, sockclient2,tp;
+mutex_e *e;
 int hauteur, largeur, nbpoisson;
 
 void *routine_requete(void *args)
-{   
-    
+{
+    action_t tmp1, tmp2;
+    int buff = 0, buff2 = 0;
+
+    while (1)
+    {
+        while (buff == 0 && buff2 == 0)
+        {
+            if ((buff = read(sockclient, &tmp1, sizeof(action_t))) == -1)
+            {
+                perror("Erreur lors de la recpetion de la longueur ");
+                exit(EXIT_FAILURE);
+            }
+
+            if ((buff2 = read(sockclient2, &tmp2, sizeof(action_t))) == -1)
+            {
+                perror("Erreur lors de la recpetion de la longueur ");
+                exit(EXIT_FAILURE);
+            }
+        }
+
+        if (buff > 0)
+        {
+            pthread_mutex_lock(&e->mutex_etang);
+            e->etang[tmp1.nouvelle_position].valeur = 8;
+            envoie_info(sockclient, e->etang, hauteur, largeur, 0);
+            envoie_info(sockclient2, e->etang, hauteur, largeur, 0);
+            pthread_mutex_unlock(&e->mutex_etang);
+        }
+        if (buff2 > 0)
+        {
+            pthread_mutex_lock(&e->mutex_etang);
+            e->etang[tmp2.nouvelle_position].valeur = 8;
+            envoie_info(sockclient, e->etang, hauteur, largeur, 0);
+            envoie_info(sockclient2, e->etang, hauteur, largeur, 0);
+            pthread_mutex_unlock(&e->mutex_etang);
+        }
+
+        buff = 0;
+        buff2 = 0;
+        sleep(1);
+    }
+
     return NULL;
 }
 
 void *routine_poisson(void *args)
 {
-    int i = 0;
     poisson_t *tmp = (void *)args;
     while (vict == 0)
     {
+        pthread_mutex_lock(&e->mutex_etang);
+        deplacement_poisson(e->etang, tmp, largeur, hauteur);
+        envoie_info(sockclient, e->etang, hauteur, largeur, 0);
+        envoie_info(sockclient2, e->etang, hauteur, largeur, 0);
 
-        pthread_mutex_lock(&mutex_etang);
-        deplacement_poisson(etang, tmp, largeur, hauteur);
-        pthread_mutex_unlock(&mutex_etang);
-        envoie_info(sockclient, etang, hauteur, largeur, 0);
-        envoie_info(sockclient2, etang, hauteur, largeur, 0);
-        sleep(3);
-        i++;
+        if((tp=attrape_poisson(e->etang,tmp,largeur))!=-1){
+            printf("oups");
+        }
+        else{
+            printf("le poisson %d a la case %d  est peché par la canne a la case %d\n",tmp->valeur , tmp->pos,tp);
+        }
+        pthread_mutex_unlock(&e->mutex_etang);
+        sleep(5);
     }
 
     return NULL;
@@ -110,17 +154,19 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
+    e = malloc(sizeof(mutex_e));
+    pthread_mutex_init(&e->mutex_etang, NULL);
     hauteur = atoi(argv[2]);
     largeur = atoi(argv[3]);
     taille = hauteur * largeur;
-    etang = malloc(sizeof(case_t) * taille);
+    e->etang = malloc(sizeof(case_t) * taille);
     for (i = 0; i < hauteur; i++)
     {
         for (j = 0; j < largeur; j++)
         {
-            etang[k].nb = 0;
-            etang[k].joueur = 0;
-            etang[k].type_case = 0;
+            e->etang[k].valeur = 0;
+            e->etang[k].joueur = 0;
+            e->etang[k].type_case = 0;
             k++;
         }
     }
@@ -160,16 +206,16 @@ int main(int argc, char *argv[])
     }
     printf("Les deux sockets sont connectées\n");
 
-    envoie_info(sockclient, etang, hauteur, largeur, 1);
-    envoie_info(sockclient2, etang, hauteur, largeur, 1);
+    envoie_info(sockclient, e->etang, hauteur, largeur, 1);
+    envoie_info(sockclient2, e->etang, hauteur, largeur, 1);
 
     pthread_create(&r, NULL, routine_requete, &file_action);
 
     for (i = 0; i < 2; i++)
     {
-        generer_poison(etang, largeur, hauteur, &p[i], i + 2);
+        generer_poison(e->etang, largeur, hauteur, &p[i], i + 2);
         pthread_create(&poisson[i], NULL, routine_poisson, &p[i]);
-    }    
+    }
 
     for (i = 0; i < 2; i++)
     {
@@ -201,7 +247,7 @@ int main(int argc, char *argv[])
     }
 
     printf("Serveur terminé.\n");
-    free(etang);
+    free(e->etang);
 
     return EXIT_SUCCESS;
 }

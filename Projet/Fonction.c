@@ -9,20 +9,18 @@ void init_joueur(int i, joueur_t *j)
     j->point = 0;
 }
 
-
-void afficher_etang(case_t *etang, int largeur, int longueur , WINDOW* fenetre)
+void afficher_etang(case_t *etang, int largeur, int longueur, WINDOW *fenetre)
 {
     int i, j, k = 0;
     for (i = 0; i < longueur; i++)
     {
         for (j = 0; j < largeur; j++)
         {
-            mvwprintw(fenetre, i, j,"%d" ,etang[k].nb);
+            mvwprintw(fenetre, i, j, "%d", etang[k].valeur);
             k++;
         }
         printf("\n");
     }
-    
 }
 void init_poisson(poisson_t *p, int id)
 {
@@ -52,7 +50,7 @@ void generer_poison(case_t *etang, int largeur, int longueur, poisson_t *p, int 
     init_poisson(p, id);
     i = rand() % longueur * largeur;
 
-    while (etang[i].nb != 0)
+    while (etang[i].valeur != 0)
     {
         i = rand() % longueur * largeur;
     }
@@ -108,33 +106,44 @@ void deplacement_poisson(case_t *etang, poisson_t *p, int largeur, int longueur)
     switch (r)
     {
     case 0:
-        if (p->pos > 0 && &etang[(p->pos)-1]==0)
+        if (p->pos > 0)
         {
-            p->pos--;
+            if (etang[p->pos-1].valeur == 0)
+            {
+                p->pos--;
+            }
         }
         break;
     case 1:
-        if (p->pos < (largeur * longueur) - 1 && &etang[(p->pos)+1])
+        if (p->pos < (largeur * longueur) - 1)
         {
-            p->pos++;
+            if (etang[p->pos+1].valeur == 0)
+            {
+                p->pos++;
+            }
         }
         break;
     case 2:
-        if (p->pos < (largeur * longueur) - largeur && &etang[(p->pos)+largeur])
+        if (p->pos < (largeur * longueur) - largeur)
         {
-            p->pos += largeur;
+            if (etang[p->pos + largeur].valeur == 0)
+            {
+                p->pos += largeur;
+            }
         }
         break;
     case 3:
-        if (p->pos >= largeur && &etang[(p->pos)-largeur])
+        if (p->pos >= largeur)
         {
-            p->pos -= largeur;
+            if (etang[p->pos - largeur].valeur == 0)
+            {
+                p->pos -= largeur;
+            }
         }
         break;
     }
-    changer_case(&etang[p->pos],1,p->id,0);
-    etang[p->pos].objet.p=p;
-    
+    changer_case(&etang[p->pos], 1, p->id, 0);
+    etang[p->pos].objet.p = p;
 }
 /**
  * @param envoie 1 pour envoyé la carte avec la longueur et la largeur 
@@ -201,43 +210,99 @@ void recevoir_info(int fd, case_t *etang, int longueur, int largeur)
     }
 }
 
-action_t lire_action(file_action_t* f){
+action_t lire_action(file_action_t *f)
+{
 
     action_t tmp;
 
-    tmp=f->a[f->indice_queue];
+    tmp = f->a[f->indice_queue];
     f->indice_queue++;
 
     return tmp;
 }
 
-void vider_case(case_t* etang){
-    etang->joueur=0;
-    etang->nb=0;
-    etang->type_case=0;
-    etang->objet.p=NULL;
+void vider_case(case_t *etang)
+{
+    etang->joueur = 0;
+    etang->valeur = 0;
+    etang->type_case = 0;
+    etang->objet.p = NULL;
 }
 
-void changer_case(case_t* etang , int type , int nb , int joueur){
-    etang->joueur=joueur;
-    etang->type_case=type;
-    etang->nb=nb;
+void changer_case(case_t *etang, int type, int nb, int joueur)
+{
+    etang->joueur = joueur;
+    etang->type_case = type;
+    etang->valeur = nb;
 }
 
-void ajouter_canne(case_t* etang ,action_t* canne , int position){
-    etang[position].objet.a=canne;
-    etang[position].joueur=canne->id_action;
-    etang[position].type_case=TYPE_CANNE;
-    etang[position].nb=3;
+void ajouter_canne(case_t *etang, action_t *canne)
+{
+    vider_case(&etang[canne->position]);
+    etang[canne->nouvelle_position].objet.a = canne;
+    etang[canne->nouvelle_position].joueur = canne->id_joueur;
+    etang[canne->nouvelle_position].type_case = TYPE_CANNE;
+    etang[canne->nouvelle_position].valeur = 9;
 }
 
-int file_vide(file_action_t* a){
-    if (a->indice_queue==a->indice_tete)
+int file_vide(file_action_t *a)
+{
+    if (a->indice_queue == a->indice_tete)
     {
         return 0;
     }
-    else{
+    else
+    {
         return 1;
     }
-    
+}
+
+int attrape_poisson(case_t *etang, poisson_t *p, int largeur)
+{
+    case_t maybe[4];
+    int nb_canne = 0, i, ok = -1, choix;
+
+    srand(time(NULL));
+    maybe[0] = etang[p->pos - 1];
+    maybe[1] = etang[p->pos + 1];
+    maybe[2] = etang[p->pos + largeur];
+    maybe[3] = etang[p->pos - largeur];
+
+    for (i = 0; i < 4; i++)
+    {
+        if (maybe[i].type_case == TYPE_CANNE)
+        {
+            nb_canne++;
+            choix = i;
+        }
+    }
+    if (nb_canne > 1)
+    {
+        choix = rand() % 99;
+
+        while (maybe[choix % 4].type_case != TYPE_CANNE)
+        {
+            choix++;
+        }
+        choix = choix % 4;
+    }
+
+    if (choix == 0)
+    {
+        ok = p->pos - 1;
+    }
+    if (choix == 1)
+    {
+        ok = p->pos + 1;
+    }
+    if (choix == 2)
+    {
+        ok = p->pos + largeur;
+    }
+    if (choix == 3)
+    {
+        ok = p->pos - largeur;
+    }
+
+    return ok;
 }

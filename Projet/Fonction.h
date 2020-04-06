@@ -1,8 +1,6 @@
 #ifndef FONCTION
 #define FONCTION
-#include <ncurses.h>
-#include "ncurses.h"
-#include <pthread.h>
+#define _XOPEN_SOURCE 500
 #include <stdlib.h>     /* Pour exit, EXIT_FAILURE, EXIT_SUCCESS */
 #include <stdio.h>      /* Pour printf, fprintf, perror */
 #include <sys/socket.h> /* Pour socket, bind */
@@ -29,8 +27,9 @@ void supprimer_action(file_action_t* f,action_t* r);
 action_t lire_action(file_action_t* f);
 void envoie_info(int sockclient  ,case_t *etang , int longueur , int largeur,int envoie);
 void recevoir_info(int fd , case_t* etang ,int longueur, int largeur);
-void ajouter_canne(case_t* etang ,action_t* canne , int position);
+void ajouter_canne(case_t* etang ,action_t* canne);
 int file_vide(file_action_t* a);
+int attrape_poisson(case_t* etang , poisson_t* p , int largeur);
 
 
 

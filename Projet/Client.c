@@ -1,14 +1,13 @@
 #include "Struct.h"
 #include "Fonction.h"
-
 int fd, hauteur = 0, largeur = 0;
 case_t *etang;
 WINDOW *fenetre_joueur;
-WINDOW *sous_fenetre_joueur;
 WINDOW *fenetre_simulation;
-WINDOW *sous_fenetre_simulation;
+
 void *affichage(void *args)
 {
+    mutex_f *f = (mutex_f *)args;
     int test = 0;
     ncurses_initialisation();
     ncurses_souris();
@@ -32,37 +31,44 @@ void *affichage(void *args)
             exit(EXIT_FAILURE);
         }
     }
-
-    /**
-     * Fenêtre information
-     */
+    pthread_mutex_lock(&f->mutex_fenetre);
     fenetre_joueur = creer_fenetre(5, COLS, 0, 0, 1);
     wbkgd(fenetre_joueur, COLOR_PAIR(1));
     mvwprintw(fenetre_joueur, 0, 1, "Infos");
 
-    sous_fenetre_joueur = creer_sous_fenetre(sous_fenetre_joueur, 4 - 1, COLS - 2, 1, 1);
+    f->sous_joueur = creer_sous_fenetre(fenetre_joueur, 4 - 1, COLS - 2, 1, 1);
     /**
      * Fenêtre simulation
      */
     fenetre_simulation = creer_fenetre(15 + 2, 30 + 3, 5, 0, 1);
     wbkgd(fenetre_simulation, COLOR_PAIR(1));
     mvwprintw(fenetre_simulation, 0, 1, "Peche");
-    sous_fenetre_simulation = creer_sous_fenetre(fenetre_simulation, 15, 30, 1, 1);
+    f->sous_simulation = creer_sous_fenetre(fenetre_simulation, 15, 30, 1, 1);
+
+    wrefresh(f->sous_joueur);
+    wrefresh(fenetre_joueur);
+    wrefresh(fenetre_simulation);
+    wrefresh(f->sous_simulation);
+    pthread_mutex_unlock(&f->mutex_fenetre);
+
     etang = malloc(sizeof(case_t) * (hauteur * largeur));
     while (1)
     {
         while (test == 0)
         {
-
             if ((test = read(fd, etang, sizeof(case_t) * hauteur * largeur)) == -1)
             {
-                perror("Erreur lors de la reception de la largeur ");
+                perror("Erreur lors de la reception de la de l'etang ");
                 exit(EXIT_FAILURE);
             }
         }
-        afficher_etang(etang, largeur, hauteur, sous_fenetre_simulation);
+        pthread_mutex_lock(&f->mutex_fenetre);
+        afficher_etang(etang, largeur, hauteur, f->sous_simulation);
         wrefresh(fenetre_simulation);
-        wrefresh(sous_fenetre_simulation);
+        wrefresh(f->sous_simulation);
+        pthread_cond_signal(&f->attente);
+        pthread_mutex_unlock(&f->mutex_fenetre);
+        usleep(500);
 
         test = 0;
     }
@@ -76,6 +82,9 @@ int main(int argc, char *argv[])
     reponse_t reponse;
     pthread_t aff;
     joueur_t j;
+    action_t test;
+    mutex_f *f;
+    int sortie, x, y, bouton;
     struct sockaddr_in adresseServeur;
     int sockfd;
     /* Vérification des arguments */
@@ -154,8 +163,53 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    pthread_create(&aff, NULL, affichage, NULL);
+    f = malloc(sizeof(mutex_f));
+    pthread_mutex_init(&f->mutex_fenetre, NULL);
+    pthread_cond_init(&f->attente, NULL);
+    pthread_create(&aff, NULL, affichage, f);
+    test.id_joueur = j.num;
+    test.position = 0;
+    test.nouvelle_position = 0;
+    test.type = TYPE_CANNE;
 
+    pthread_mutex_lock(&f->mutex_fenetre);
+    pthread_cond_wait(&f->attente, &f->mutex_fenetre);
+
+    sortie = getch();
+
+    switch (sortie)
+    {
+    case KEY_MOUSE:
+        if (souris_getpos(&y, &x, &bouton) == OK)
+        {
+            if (bouton & BUTTON1_CLICKED)
+            {
+                x -= 6;
+                y--;
+
+                if ((y < 0 || x < 0) || (y > 30 || x > 15))
+                {
+                    mvwprintw(f->sous_joueur, 1, 1, "\nCliquez dans la fenetre simulation");
+                    wrefresh(f->sous_joueur);
+                }
+
+                else
+                {
+                    test.nouvelle_position = (x * largeur) + y;
+                    if (write(fd, &test, sizeof(action_t)) == -1)
+                    {
+                        perror("Erreur lors de l'envoie de la canne ");
+                        exit(EXIT_FAILURE);
+                    }
+                    mvwprintw(f->sous_joueur, 1, 1, "\nCanne posé  : %d",test.nouvelle_position);
+                }
+            }
+        }
+    }
+
+    mvwprintw(f->sous_joueur, 1, 1, "test");
+    wrefresh(f->sous_joueur);
+    pthread_mutex_unlock(&f->mutex_fenetre);
 
     pthread_join(aff, NULL);
 
@@ -167,7 +221,7 @@ int main(int argc, char *argv[])
     }
 
     delwin(fenetre_simulation);
-    delwin(sous_fenetre_simulation);
+    delwin(f->sous_simulation);
     ncurses_stopper();
 
     return EXIT_SUCCESS;
