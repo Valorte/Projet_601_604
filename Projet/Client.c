@@ -1,92 +1,85 @@
 #include "Struct.h"
 #include "Fonction.h"
-int fd, hauteur = 0, largeur = 0;
+
+int hauteur = 0, largeur = 0;
+mutex_fd *fd;
 case_t *etang;
+canne_t c;
+requete_t req;
 WINDOW *fenetre_joueur;
 WINDOW *fenetre_simulation;
+mutex_f *f;
 
 void *affichage(void *args)
 {
-    mutex_f *f = (mutex_f *)args;
-    int test = 0;
+    int att = 0;
     ncurses_initialisation();
     ncurses_souris();
     ncurses_couleurs();
+    wbkgd(stdscr, COLOR_PAIR(5));
+    wrefresh(stdscr);
 
     while (hauteur == 0)
     {
-
-        if (read(fd, &hauteur, sizeof(int)) == -1)
+        if (read(fd->fd, &hauteur, sizeof(int)) == -1)
         {
-            perror("Erreur lors de la recpetion de la hauteur ");
+            perror("Erreur lors de la recpetion de la longueur ");
             exit(EXIT_FAILURE);
         }
     }
-
     while (largeur == 0)
     {
-        if (read(fd, &largeur, sizeof(int)) == -1)
+        if (read(fd->fd, &largeur, sizeof(int)) == -1)
         {
             perror("Erreur lors de la reception de la largeur ");
             exit(EXIT_FAILURE);
         }
     }
-    pthread_mutex_lock(&f->mutex_fenetre);
+    etang = malloc(sizeof(case_t) * hauteur * largeur);
+
     fenetre_joueur = creer_fenetre(5, COLS, 0, 0, 1);
     wbkgd(fenetre_joueur, COLOR_PAIR(1));
     mvwprintw(fenetre_joueur, 0, 1, "Infos");
+    scrollok(f->sous_joueur, TRUE);
 
     f->sous_joueur = creer_sous_fenetre(fenetre_joueur, 4 - 1, COLS - 2, 1, 1);
-    /**
-     * Fenêtre simulation
-     */
-    fenetre_simulation = creer_fenetre(15 + 2, 30 + 3, 5, 0, 1);
+
+    fenetre_simulation = creer_fenetre(largeur + 2, hauteur + 3, 5, 0, 1);
     wbkgd(fenetre_simulation, COLOR_PAIR(1));
     mvwprintw(fenetre_simulation, 0, 1, "Peche");
-    f->sous_simulation = creer_sous_fenetre(fenetre_simulation, 15, 30, 1, 1);
-
+    f->sous_simulation = creer_sous_fenetre(fenetre_simulation, largeur, hauteur, 1, 1);
     wrefresh(f->sous_joueur);
     wrefresh(fenetre_joueur);
     wrefresh(fenetre_simulation);
     wrefresh(f->sous_simulation);
-    pthread_mutex_unlock(&f->mutex_fenetre);
 
-    etang = malloc(sizeof(case_t) * (hauteur * largeur));
     while (1)
     {
-        while (test == 0)
+        while (att == 0)
         {
-            if ((test = read(fd, etang, sizeof(case_t) * hauteur * largeur)) == -1)
+            if ((att = read(fd->fd, etang, sizeof(case_t) * hauteur * largeur)) == -1)
             {
-                perror("Erreur lors de la reception de la de l'etang ");
+                perror("Erreur lors de la receptionde l'etang ");
                 exit(EXIT_FAILURE);
             }
         }
-        pthread_mutex_lock(&f->mutex_fenetre);
         afficher_etang(etang, largeur, hauteur, f->sous_simulation);
+        wrefresh(f->sous_joueur);
+        wrefresh(fenetre_joueur);
         wrefresh(fenetre_simulation);
         wrefresh(f->sous_simulation);
-        pthread_cond_signal(&f->attente);
-        pthread_mutex_unlock(&f->mutex_fenetre);
-        usleep(500);
-
-        test = 0;
+        att = 0;
     }
-
     return NULL;
 }
 
 int main(int argc, char *argv[])
 {
-    requete_t connex;
     reponse_t reponse;
     pthread_t aff;
     joueur_t j;
-    action_t test;
-    mutex_f *f;
-    int sortie, x, y, bouton;
     struct sockaddr_in adresseServeur;
-    int sockfd;
+    int sockfd,i;
     /* Vérification des arguments */
     if (argc != 3)
     {
@@ -96,6 +89,7 @@ int main(int argc, char *argv[])
         fprintf(stderr, "  portServeur    : numéro de port du serveur\n");
         exit(EXIT_FAILURE);
     }
+    fd = malloc(sizeof(mutex_fd));
 
     /* Création de la socket */
     if ((sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
@@ -114,10 +108,10 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    connex.type = TYPE_CONNEXION;
+    req.type_requete = TYPE_CONNEXION;
 
-    if (sendto(sockfd, &connex, sizeof(requete_t), 0, (struct sockaddr *)&adresseServeur, sizeof(struct sockaddr_in)) == -1)
-    {
+    if (sendto(sockfd, &req, sizeof(requete_t), 0, (struct sockaddr *)&adresseServeur, sizeof(struct sockaddr_in)) == -1)
+    { /* code */
         perror("Erreur lors de l'envoi du message ");
         exit(EXIT_FAILURE);
     }
@@ -140,7 +134,7 @@ int main(int argc, char *argv[])
     }
 
     /* Création de la socket */
-    if ((fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1)
+    if ((fd->fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1)
     {
         perror("Erreur lors de la création de la socket ");
         exit(EXIT_FAILURE);
@@ -155,74 +149,39 @@ int main(int argc, char *argv[])
         perror("Erreur lors de la conversion de l'adresse ");
         exit(EXIT_FAILURE);
     }
-
     /* Connexion au serveur */
-    if (connect(fd, (struct sockaddr *)&adresseServeur, sizeof(adresseServeur)) == -1)
+    if (connect(fd->fd, (struct sockaddr *)&adresseServeur, sizeof(adresseServeur)) == -1)
     {
         perror("Erreur lors de la connexion ");
         exit(EXIT_FAILURE);
     }
-
     f = malloc(sizeof(mutex_f));
+
+    pthread_mutex_init(&fd->mutex_descripteur, NULL);
     pthread_mutex_init(&f->mutex_fenetre, NULL);
-    pthread_cond_init(&f->attente, NULL);
-    pthread_create(&aff, NULL, affichage, f);
-    test.id_joueur = j.num;
-    test.position = 0;
-    test.nouvelle_position = 0;
-    test.type = TYPE_CANNE;
-
-    pthread_mutex_lock(&f->mutex_fenetre);
-    pthread_cond_wait(&f->attente, &f->mutex_fenetre);
-
-    sortie = getch();
-
-    switch (sortie)
+    pthread_create(&aff, NULL, affichage, NULL);
+    c.valeur = j.num;
+    i=0;
+    while (1)
     {
-    case KEY_MOUSE:
-        if (souris_getpos(&y, &x, &bouton) == OK)
+        c.pos = i;
+        if (write(fd->fd, &c, sizeof(canne_t)) == -1)
         {
-            if (bouton & BUTTON1_CLICKED)
-            {
-                x -= 6;
-                y--;
-
-                if ((y < 0 || x < 0) || (y > 30 || x > 15))
-                {
-                    mvwprintw(f->sous_joueur, 1, 1, "\nCliquez dans la fenetre simulation");
-                    wrefresh(f->sous_joueur);
-                }
-
-                else
-                {
-                    test.nouvelle_position = (x * largeur) + y;
-                    if (write(fd, &test, sizeof(action_t)) == -1)
-                    {
-                        perror("Erreur lors de l'envoie de la canne ");
-                        exit(EXIT_FAILURE);
-                    }
-                    mvwprintw(f->sous_joueur, 1, 1, "\nCanne posé  : %d",test.nouvelle_position);
-                }
-            }
+            perror("Erreur lors de l'envoie de la largeur 1 ");
+            exit(EXIT_FAILURE);
         }
+        sleep(3);
+        i++;
     }
-
-    mvwprintw(f->sous_joueur, 1, 1, "test");
-    wrefresh(f->sous_joueur);
-    pthread_mutex_unlock(&f->mutex_fenetre);
 
     pthread_join(aff, NULL);
 
     /* Fermeture de la socket */
-    if (close(fd) == -1)
+    if (close(fd->fd) == -1)
     {
         perror("Erreur lors de la fermeture de la socket ");
         exit(EXIT_FAILURE);
     }
-
-    delwin(fenetre_simulation);
-    delwin(f->sous_simulation);
-    ncurses_stopper();
 
     return EXIT_SUCCESS;
 }

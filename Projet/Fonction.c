@@ -25,7 +25,7 @@ void afficher_etang(case_t *etang, int largeur, int longueur, WINDOW *fenetre)
 void init_poisson(poisson_t *p, int id)
 {
     int v;
-    p->id = id;
+    p->valeur = id;
     p->etat = 0;
     p->pos = 0;
 
@@ -55,48 +55,9 @@ void generer_poison(case_t *etang, int largeur, int longueur, poisson_t *p, int 
         i = rand() % longueur * largeur;
     }
     p->pos = i;
-    etang[i].objet.p = p;
+    etang[i].objet.p = *p;
 }
 
-void ajouter_requete(file_requete_t *f, requete_t *r)
-{
-    f->r[f->indice_tete] = *r;
-    f->indice_tete++;
-    if (f->indice_tete == 50)
-    {
-        f->indice_tete = 0;
-    }
-}
-
-void supprimer_requete(file_requete_t *f, requete_t *r)
-{
-    f->r[f->indice_tete] = *r;
-    f->indice_queue++;
-    if (f->indice_queue == 50)
-    {
-        f->indice_queue = 0;
-    }
-}
-
-void ajouter_action(file_action_t *f, action_t *r)
-{
-    f->a[f->indice_tete] = *r;
-    f->indice_tete++;
-    if (f->indice_tete == 50)
-    {
-        f->indice_tete = 0;
-    }
-}
-
-void supprimer_action(file_action_t *f, action_t *r)
-{
-    f->a[f->indice_tete] = *r;
-    f->indice_queue++;
-    if (f->indice_queue == 50)
-    {
-        f->indice_queue = 0;
-    }
-}
 void deplacement_poisson(case_t *etang, poisson_t *p, int largeur, int longueur)
 {
     int r;
@@ -108,7 +69,7 @@ void deplacement_poisson(case_t *etang, poisson_t *p, int largeur, int longueur)
     case 0:
         if (p->pos > 0)
         {
-            if (etang[p->pos-1].valeur == 0)
+            if (etang[p->pos - 1].valeur == 0)
             {
                 p->pos--;
             }
@@ -117,7 +78,7 @@ void deplacement_poisson(case_t *etang, poisson_t *p, int largeur, int longueur)
     case 1:
         if (p->pos < (largeur * longueur) - 1)
         {
-            if (etang[p->pos+1].valeur == 0)
+            if (etang[p->pos + 1].valeur == 0)
             {
                 p->pos++;
             }
@@ -142,8 +103,7 @@ void deplacement_poisson(case_t *etang, poisson_t *p, int largeur, int longueur)
         }
         break;
     }
-    changer_case(&etang[p->pos], 1, p->id, 0);
-    etang[p->pos].objet.p = p;
+    changer_case_poisson(etang, p);
 }
 /**
  * @param envoie 1 pour envoyé la carte avec la longueur et la largeur 
@@ -179,7 +139,6 @@ void envoie_info(int sockclient, case_t *etang, int longueur, int largeur, int e
         }
     }
 }
-
 void recevoir_info(int fd, case_t *etang, int longueur, int largeur)
 {
 
@@ -210,99 +169,44 @@ void recevoir_info(int fd, case_t *etang, int longueur, int largeur)
     }
 }
 
-action_t lire_action(file_action_t *f)
-{
-
-    action_t tmp;
-
-    tmp = f->a[f->indice_queue];
-    f->indice_queue++;
-
-    return tmp;
-}
-
 void vider_case(case_t *etang)
 {
-    etang->joueur = 0;
     etang->valeur = 0;
     etang->type_case = 0;
-    etang->objet.p = NULL;
 }
 
-void changer_case(case_t *etang, int type, int nb, int joueur)
+void changer_case_poisson(case_t *etang, poisson_t *p)
 {
-    etang->joueur = joueur;
-    etang->type_case = type;
-    etang->valeur = nb;
-}
-
-void ajouter_canne(case_t *etang, action_t *canne)
-{
-    vider_case(&etang[canne->position]);
-    etang[canne->nouvelle_position].objet.a = canne;
-    etang[canne->nouvelle_position].joueur = canne->id_joueur;
-    etang[canne->nouvelle_position].type_case = TYPE_CANNE;
-    etang[canne->nouvelle_position].valeur = 9;
-}
-
-int file_vide(file_action_t *a)
-{
-    if (a->indice_queue == a->indice_tete)
-    {
-        return 0;
-    }
-    else
-    {
-        return 1;
-    }
+    etang[p->pos].objet.p = *p;
+    etang[p->pos].type_case = TYPE_POISSON;
+    etang[p->pos].valeur = p->valeur;
 }
 
 int attrape_poisson(case_t *etang, poisson_t *p, int largeur)
 {
     case_t maybe[4];
-    int nb_canne = 0, i, ok = -1, choix;
-
-    srand(time(NULL));
+    int choix = -1;
     maybe[0] = etang[p->pos - 1];
     maybe[1] = etang[p->pos + 1];
     maybe[2] = etang[p->pos + largeur];
     maybe[3] = etang[p->pos - largeur];
 
-    for (i = 0; i < 4; i++)
+    if (maybe[0].type_case == TYPE_CANNE)
     {
-        if (maybe[i].type_case == TYPE_CANNE)
-        {
-            nb_canne++;
-            choix = i;
-        }
+        choix = p->pos - 1;
     }
-    if (nb_canne > 1)
+    if (maybe[1].type_case == TYPE_CANNE)
     {
-        choix = rand() % 99;
-
-        while (maybe[choix % 4].type_case != TYPE_CANNE)
-        {
-            choix++;
-        }
-        choix = choix % 4;
+        choix = p->pos + 1;
+    }
+    if (maybe[2].type_case == TYPE_CANNE)
+    {
+        choix = p->pos + largeur;
+    }
+    if (maybe[3].type_case == TYPE_CANNE)
+    {
+        choix = p->pos - largeur;
     }
 
-    if (choix == 0)
-    {
-        ok = p->pos - 1;
-    }
-    if (choix == 1)
-    {
-        ok = p->pos + 1;
-    }
-    if (choix == 2)
-    {
-        ok = p->pos + largeur;
-    }
-    if (choix == 3)
-    {
-        ok = p->pos - largeur;
-    }
-
-    return ok;
+    return choix;
 }

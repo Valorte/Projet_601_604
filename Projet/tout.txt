@@ -85,3 +85,229 @@
 
     if(test1!=0)
     if(test2!=0)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    int test = 0;
+    ncurses_initialisation();
+    ncurses_souris();
+    ncurses_couleurs();
+    wbkgd(stdscr, COLOR_PAIR(5));
+    wrefresh(stdscr);
+
+    while (hauteur == 0)
+    {
+
+        if (read(fd, &hauteur, sizeof(int)) == -1)
+        {
+            perror("Erreur lors de la recpetion de la hauteur ");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    while (largeur == 0)
+    {
+        if (read(fd, &largeur, sizeof(int)) == -1)
+        {
+            perror("Erreur lors de la reception de la largeur ");
+            exit(EXIT_FAILURE);
+        }
+    }
+    pthread_mutex_lock(&f->mutex_fenetre);
+    fenetre_joueur = creer_fenetre(5, COLS, 0, 0, 1);
+    wbkgd(fenetre_joueur, COLOR_PAIR(1));
+    mvwprintw(fenetre_joueur, 0, 1, "Infos");
+
+    f->sous_joueur = creer_sous_fenetre(fenetre_joueur, 4 - 1, COLS - 2, 1, 1);
+    /**
+     * Fenêtre simulation
+     */
+    fenetre_simulation = creer_fenetre(largeur + 2, hauteur + 3, 5, 0, 1);
+    wbkgd(fenetre_simulation, COLOR_PAIR(1));
+    mvwprintw(fenetre_simulation, 0, 1, "Peche");
+    f->sous_simulation = creer_sous_fenetre(fenetre_simulation, largeur, hauteur, 1, 1);
+
+    wrefresh(f->sous_joueur);
+    wrefresh(fenetre_joueur);
+    wrefresh(fenetre_simulation);
+    wrefresh(f->sous_simulation);
+    pthread_mutex_unlock(&f->mutex_fenetre);
+
+    etang = malloc(sizeof(case_t) * (hauteur * largeur));
+    while (1)
+    {
+        while (test == 0)
+        {
+        pthread_mutex_lock(&f->mutex_fenetre);
+            if ((test = read(fd, etang, sizeof(case_t) * hauteur * largeur)) == -1)
+            {
+                perror("Erreur lors de la reception de la de l'etang ");
+                exit(EXIT_FAILURE);
+            }
+        }
+        afficher_etang(etang, largeur, hauteur, f->sous_simulation);
+        wrefresh(fenetre_simulation);
+        wrefresh(f->sous_simulation);
+        pthread_cond_signal(&f->attente);
+        pthread_mutex_unlock(&f->mutex_fenetre);
+        usleep(500);
+
+        test = 0;
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+    sleep(1);
+    while (1)
+    {
+
+        mvwprintw(f->sous_joueur, 1, 1, "Ou poser sa canne ?");
+        wrefresh(f->sous_joueur);
+
+        sortie = getch();
+
+        switch (sortie)
+        {
+        case KEY_MOUSE:
+            if (souris_getpos(&y, &x, &bouton) == OK)
+            {
+                if (bouton & BUTTON1_CLICKED)
+                {
+                    x -= 6;
+                    y--;
+
+                    if ((y < 0 || x < 0) || (y > 30 || x > 15))
+                    {
+                        mvwprintw(f->sous_joueur, 1, 1, "\nCliquez dans la fenetre simulation");
+                        wrefresh(f->sous_joueur);
+                    }
+
+                    else
+                    {
+                        test.nouvelle_position = (x * largeur) + y;
+                        pthread_mutex_lock(&f->mutex_fenetre);
+                        pthread_cond_wait(&f->attente, &f->mutex_fenetre);
+                        if (write(fd, &test, sizeof(action_t)) == -1)
+                        {
+                            perror("Erreur lors de l'envoie de la canne ");
+                            exit(EXIT_FAILURE);
+                        }
+                        mvwprintw(f->sous_joueur, 1, 1, "\nCanne posé  : %d , point: ", test.nouvelle_position, j.point);
+                        test.position = test.nouvelle_position;
+                        wrefresh(f->sous_joueur);
+                        pthread_mutex_unlock(&f->mutex_fenetre);
+                    }
+                }
+            }
+        }
+        sleep(3);
+    }
+
+
+
+
+    switch (recu.type)
+    {
+    case TYPE_PREMIERE:
+        while (hauteur == 0)
+        {
+            if (read(fd, &hauteur, sizeof(int)) == -1)
+            {
+                perror("Erreur lors de la recpetion de la hauteur ");
+                exit(EXIT_FAILURE);
+            }
+        }
+
+        while (largeur == 0)
+        {
+            if (read(fd, &largeur, sizeof(int)) == -1)
+            {
+                perror("Erreur lors de la reception de la largeur ");
+                exit(EXIT_FAILURE);
+            }
+        }
+        break;
+    }
+
+
+
+
+
+
+
+
+    void *pose_canne(void *args)
+{
+    int sortie, x, y, bouton;
+
+    mvwprintw(f->sous_joueur, 1, 1, "Ou poser sa canne ?");
+    wrefresh(f->sous_joueur);
+
+    sortie = getch();
+
+    switch (sortie)
+    {
+    case KEY_MOUSE:
+        if (souris_getpos(&y, &x, &bouton) == OK)
+        {
+            if (bouton & BUTTON1_CLICKED)
+            {
+                x -= 6;
+                y--;
+
+                if ((y < 0 || x < 0) || (y > largeur || x > hauteur))
+                {
+                    mvwprintw(f->sous_joueur, 1, 1, "\nCliquez dans la fenetre simulation");
+                    wrefresh(f->sous_joueur);
+                }
+
+                else
+                {
+                    wprintw(f->sous_joueur, "\n%d", (x * largeur) + y);
+                }
+            }
+        }
+        break;
+    }
+    return NULL;
+}
+
+
+
+
+
+
+pthread_mutex_lock(&e[tmp->pos].mutex_case);
+        pthread_mutex_lock(&e[tmp->pos-1].mutex_case);
+        pthread_mutex_lock(&e[tmp->pos+1].mutex_case);
+        pthread_mutex_lock(&e[tmp->pos-largeur].mutex_case);
+        pthread_mutex_lock(&e[tmp->pos+largeur].mutex_case);

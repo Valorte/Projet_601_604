@@ -39,6 +39,7 @@ void ncurses_couleurs()
     init_pair(2, COLOR_GREEN, COLOR_GREEN);
     init_pair(3, COLOR_BLUE, COLOR_WHITE);
     init_pair(4, COLOR_WHITE, COLOR_WHITE);
+    init_pair(5,COLOR_BLACK,COLOR_BLACK);
 }
 
 /**

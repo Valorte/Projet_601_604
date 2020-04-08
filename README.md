@@ -54,3 +54,10 @@ Que faire :
     -Peche des poissons
     -Creation des bonus
     -Ajout des bonus sur l'étang
+
+
+
+
+Le main recupere les requetes et reveil dans l'ordre les thread conecrné
+
+il faut que je fasse plusieur varibale condi , une pour chaque thread a reveillé
