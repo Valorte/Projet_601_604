@@ -7,6 +7,8 @@ canne_t c;
 int retval;
 fd_set fds;
 struct timeval tv;
+pthread_t poisson[MAX_POISSON] , gene;
+
 void *routine_poisson(void *args)
 {
 
@@ -49,13 +51,23 @@ void *routine_poisson(void *args)
 
     return NULL;
 }
+void* generer_poisson(void *args){
+    int i;
+    poisson_t *p;
+    p=malloc(sizeof(poisson_t)*MAX_POISSON);
+    for (i = 0; i < MAX_POISSON; i++)
+    {
+        
+        generer_poison(e, largeur, hauteur, &p[i], i);
+        pthread_create(&poisson[i], NULL, routine_poisson, &p[i]);
+    }
+    return NULL;
+}
 
 int main(int argc, char *argv[])
 {
     reponse_t reponse[2];
     requete_t requete;
-    poisson_t p[2];
-    pthread_t poisson[2];
     int sockfd, i = 0, fd, j, k = 0, taille, max;
     struct sockaddr_in adresseServeur;
     struct sockaddr_in adresseClient[2];
@@ -178,11 +190,7 @@ int main(int argc, char *argv[])
     envoie_info(sockclient, e, largeur, hauteur, 1);
     envoie_info(sockclient2, e, largeur, hauteur, 1);
 
-    for (i = 0; i < 2; i++)
-    {
-        generer_poison(e, largeur, hauteur, &p[i], i + 2);
-        pthread_create(&poisson[i], NULL, routine_poisson, &p[i]);
-    }
+    /* pthread_create(&gene,NULL,generer_poisson,NULL); */
     while (1)
     {
 
@@ -234,10 +242,11 @@ int main(int argc, char *argv[])
         envoie_info(sockclient2, e, largeur, hauteur, 0);
     }
 
-    for (i = 0; i < 2; i++)
+    for (i = 0; i < MAX_POISSON; i++)
     {
         pthread_join(poisson[i], NULL);
     }
+    pthread_join(gene, NULL);
 
     /* Fermeture des sockets */
     if (close(sockclient) == -1)

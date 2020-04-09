@@ -16,7 +16,7 @@ void afficher_etang(case_t *etang, int largeur, int longueur, WINDOW *fenetre)
     {
         for (j = 0; j < largeur; j++)
         {
-            mvwprintw(fenetre, i, j, "%d:%d", etang[k].valeur, etang[k].objet.c.joueur);
+            mvwprintw(fenetre, i, j, "%d", etang[k].valeur);
             k++;
         }
         printf("\n");
@@ -25,6 +25,7 @@ void afficher_etang(case_t *etang, int largeur, int longueur, WINDOW *fenetre)
 void init_poisson(poisson_t *p, int id)
 {
     int v;
+    srand(time(NULL));
     p->valeur = id;
     p->etat = 0;
     p->pos = 0;
@@ -62,7 +63,7 @@ void deplacement_poisson(case_t *etang, poisson_t *p, int largeur, int longueur)
 {
     int r;
     vider_case(&etang[p->pos]);
-
+    srand(time(NULL));
     r = rand() % 4;
     switch (r)
     {

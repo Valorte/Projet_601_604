@@ -9,6 +9,35 @@ requete_t req;
 WINDOW *fenetre_joueur;
 WINDOW *fenetre_simulation;
 mutex_f *f;
+void *lire_message(void *args)
+{
+    int retval;
+    fd_set fds;
+    /* poisson_t p; */
+    struct timeval tv;
+
+    tv.tv_sec = 0;
+    tv.tv_usec = 100;
+    FD_ZERO(&fds);
+    FD_SET(fd->fd, &fds);
+
+    if ((retval = select(fd->fd + 1, &fds, NULL, NULL, &tv)) == -1)
+    {
+        if (errno != EINTR)
+        {
+            perror("Serveur : erreur select");
+            exit(EXIT_FAILURE);
+        }
+    }
+    if (FD_ISSET(fd->fd, &fds))
+    {
+        /* if(read(fd->fd,&p,sizeof(poisson_t))==-1){
+            perror("Reception poisson");
+            exit(EXIT_FAILURE);
+        } */
+    }
+    return NULL;
+}
 void *affichage(void *args)
 {
     int att = 0;
@@ -83,7 +112,7 @@ void *affichage(void *args)
 int main(int argc, char *argv[])
 {
     reponse_t reponse;
-    pthread_t aff;
+    pthread_t aff,lire;
     joueur_t j;
     struct sockaddr_in adresseServeur;
     int sockfd, x, y, bouton, sortie, position = -1;
@@ -167,6 +196,8 @@ int main(int argc, char *argv[])
     pthread_mutex_init(&fd->mutex_descripteur, NULL);
     pthread_mutex_init(&f->mutex_fenetre, NULL);
     pthread_cond_init(&f->attente, NULL);
+    pthread_cond_init(&fd->condi_fd, NULL);
+    pthread_create(&lire, NULL, lire_message, NULL);
     pthread_create(&aff, NULL, affichage, NULL);
 
     pthread_mutex_lock(&f->mutex_fenetre);
@@ -176,7 +207,7 @@ int main(int argc, char *argv[])
     while (1)
     {
         pthread_mutex_lock(&f->mutex_fenetre);
-        mvwprintw(f->sous_joueur, 1, 1, "Ou poser sa canne ?");
+        wprintw(f->sous_joueur,"Ou poser sa canne ?\n");
         wrefresh(f->sous_joueur);
         pthread_mutex_unlock(&f->mutex_fenetre);
         sortie = getch();
