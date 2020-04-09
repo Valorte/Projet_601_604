@@ -16,7 +16,7 @@ void afficher_etang(case_t *etang, int largeur, int longueur, WINDOW *fenetre)
     {
         for (j = 0; j < largeur; j++)
         {
-            mvwprintw(fenetre, i, j, "%d", etang[k].valeur);
+            mvwprintw(fenetre, i, j, "%d:%d", etang[k].valeur, etang[k].objet.c.joueur);
             k++;
         }
         printf("\n");
@@ -132,6 +132,12 @@ void envoie_info(int sockclient, case_t *etang, int longueur, int largeur, int e
     }
     else
     {
+        /* test = TYPE_MODIF;
+        if (write(sockclient, &test, sizeof(int)) == -1)
+        {
+            perror("Erreur lors de l'envoie de l'etang  2 ");
+            exit(EXIT_FAILURE);
+        } */
         if (write(sockclient, etang, sizeof(case_t) * longueur * largeur) == -1)
         {
             perror("Erreur lors de l'envoie de l'etang  2 ");

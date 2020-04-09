@@ -1,15 +1,15 @@
 #include "Fonction.h"
 
 int vict = 0, sockclient, sockclient2, tp;
-fd_set fds;
 case_t *e;
 int hauteur, largeur, nbpoisson;
 canne_t c;
 int retval;
+fd_set fds;
 struct timeval tv;
 void *routine_poisson(void *args)
 {
-    /*
+
     poisson_t *tmp = (void *)args;
     int vie = -1;
     while (vie < 0)
@@ -23,8 +23,9 @@ void *routine_poisson(void *args)
         sleep(3);
     }
     
-     if (e[vie].objet.c.joueur == 1)
+    if (e[vie].objet.c.joueur == 1)
     {
+        printf("Le joueur %d a peché \n",e[vie].objet.c.joueur);
         if (write(sockclient, tmp, sizeof(poisson_t)) == -1)
         {
             perror("Erreur lors de l'envoie de la longueur  ");
@@ -33,16 +34,19 @@ void *routine_poisson(void *args)
     }
     if (e[vie].objet.c.joueur == 2)
     {
+        printf("Le joueur %d a peché \n",e[vie].objet.c.joueur);
         if (write(sockclient2, tmp, sizeof(poisson_t)) == -1)
         {
             perror("Erreur lors de l'envoie de la longueur  ");
             exit(EXIT_FAILURE);
         }
     }
-
     printf("fini\n");
+    pthread_mutex_lock(&e->mutex_case);
     vider_case(&e[tmp->pos]);
-    */
+    vider_case(&e[vie]);
+    pthread_mutex_unlock(&e->mutex_case);
+
     return NULL;
 }
 
@@ -183,8 +187,8 @@ int main(int argc, char *argv[])
     {
 
         max = sockclient2 + sockclient;
-        tv.tv_sec = 5;
-        tv.tv_usec = 0;
+        tv.tv_sec = 0;
+        tv.tv_usec = 100;
         FD_ZERO(&fds);
         FD_SET(sockclient, &fds);
         FD_SET(sockclient2, &fds);
@@ -204,8 +208,12 @@ int main(int argc, char *argv[])
                 perror("Erreur lors de la recepetion de la canne de 1");
                 exit(EXIT_FAILURE);
             }
+            pthread_mutex_lock(&e->mutex_case);
+            vider_case(&e[c.ancienne_pos]);
             e[c.pos].type_case = TYPE_CANNE;
             e[c.pos].valeur = c.joueur + 5;
+            e[c.pos].objet.c = c;
+            pthread_mutex_unlock(&e->mutex_case);
         }
         if (FD_ISSET(sockclient2, &fds))
         {
@@ -215,11 +223,13 @@ int main(int argc, char *argv[])
                 perror("Erreur lors de la recepetion de la canne de 2");
                 exit(EXIT_FAILURE);
             }
+            pthread_mutex_lock(&e->mutex_case);
+            vider_case(&e[c.ancienne_pos]);
             e[c.pos].type_case = TYPE_CANNE;
             e[c.pos].valeur = c.joueur + 5;
+            e[c.pos].objet.c = c;
+            pthread_mutex_unlock(&e->mutex_case);
         }
-        printf("valeur :%d\n",e[c.pos].valeur);
-
         envoie_info(sockclient, e, largeur, hauteur, 0);
         envoie_info(sockclient2, e, largeur, hauteur, 0);
     }

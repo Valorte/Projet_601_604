@@ -81,6 +81,7 @@ typedef struct mutex_fd
 {
     int fd;
     pthread_mutex_t mutex_descripteur;
+    pthread_cond_t condi_fd;
 } mutex_fd;
 
 typedef struct requete_t

@@ -9,7 +9,6 @@ requete_t req;
 WINDOW *fenetre_joueur;
 WINDOW *fenetre_simulation;
 mutex_f *f;
-
 void *affichage(void *args)
 {
     int att = 0;
@@ -18,6 +17,8 @@ void *affichage(void *args)
     ncurses_couleurs();
     wbkgd(stdscr, COLOR_PAIR(5));
     wrefresh(stdscr);
+
+    /* pthread_mutex_lock(&fd->mutex_descripteur); */
 
     while (hauteur == 0)
     {
@@ -35,14 +36,15 @@ void *affichage(void *args)
             exit(EXIT_FAILURE);
         }
     }
+    /* pthread_mutex_unlock(&fd->mutex_descripteur); */
     etang = malloc(sizeof(case_t) * hauteur * largeur);
 
     fenetre_joueur = creer_fenetre(5, COLS, 0, 0, 1);
     wbkgd(fenetre_joueur, COLOR_PAIR(1));
     mvwprintw(fenetre_joueur, 0, 1, "Infos");
-    scrollok(f->sous_joueur, TRUE);
 
     f->sous_joueur = creer_sous_fenetre(fenetre_joueur, 4 - 1, COLS - 2, 1, 1);
+    scrollok(f->sous_joueur, TRUE);
 
     fenetre_simulation = creer_fenetre(largeur + 2, hauteur + 3, 5, 0, 1);
     wbkgd(fenetre_simulation, COLOR_PAIR(1));
@@ -52,9 +54,11 @@ void *affichage(void *args)
     wrefresh(fenetre_joueur);
     wrefresh(fenetre_simulation);
     wrefresh(f->sous_simulation);
+    pthread_cond_signal(&f->attente);
 
     while (1)
     {
+        pthread_mutex_lock(&fd->mutex_descripteur);
         while (att == 0)
         {
             if ((att = read(fd->fd, etang, sizeof(case_t) * hauteur * largeur)) == -1)
@@ -63,11 +67,14 @@ void *affichage(void *args)
                 exit(EXIT_FAILURE);
             }
         }
+        pthread_mutex_unlock(&fd->mutex_descripteur);
+        pthread_mutex_lock(&f->mutex_fenetre);
         afficher_etang(etang, largeur, hauteur, f->sous_simulation);
         wrefresh(f->sous_joueur);
         wrefresh(fenetre_joueur);
         wrefresh(fenetre_simulation);
         wrefresh(f->sous_simulation);
+        pthread_mutex_unlock(&f->mutex_fenetre);
         att = 0;
     }
     return NULL;
@@ -79,7 +86,7 @@ int main(int argc, char *argv[])
     pthread_t aff;
     joueur_t j;
     struct sockaddr_in adresseServeur;
-    int sockfd,i;
+    int sockfd, x, y, bouton, sortie, position = -1;
     /* Vérification des arguments */
     if (argc != 3)
     {
@@ -159,19 +166,60 @@ int main(int argc, char *argv[])
 
     pthread_mutex_init(&fd->mutex_descripteur, NULL);
     pthread_mutex_init(&f->mutex_fenetre, NULL);
+    pthread_cond_init(&f->attente, NULL);
     pthread_create(&aff, NULL, affichage, NULL);
-    c.valeur = j.num;
-    i=0;
+
+    pthread_mutex_lock(&f->mutex_fenetre);
+    pthread_cond_wait(&f->attente, &f->mutex_fenetre);
+    pthread_mutex_unlock(&f->mutex_fenetre);
+    c.joueur = j.num;
     while (1)
     {
-        c.pos = i;
-        if (write(fd->fd, &c, sizeof(canne_t)) == -1)
+        pthread_mutex_lock(&f->mutex_fenetre);
+        mvwprintw(f->sous_joueur, 1, 1, "Ou poser sa canne ?");
+        wrefresh(f->sous_joueur);
+        pthread_mutex_unlock(&f->mutex_fenetre);
+        sortie = getch();
+
+        switch (sortie)
         {
-            perror("Erreur lors de l'envoie de la largeur 1 ");
-            exit(EXIT_FAILURE);
+        case KEY_MOUSE:
+            if (souris_getpos(&y, &x, &bouton) == OK)
+            {
+                if (bouton & BUTTON1_CLICKED)
+                {
+                    x -= 6;
+                    y--;
+
+                    if ((y < 0 || x < 0) || (y > largeur || x > hauteur))
+                    {
+                        pthread_mutex_lock(&f->mutex_fenetre);
+                        mvwprintw(f->sous_joueur, 1, 1, "\nCliquez dans la fenetre simulation");
+                        wrefresh(f->sous_joueur);
+                        pthread_mutex_unlock(&f->mutex_fenetre);
+                        position = -1;
+                    }
+
+                    else
+                    {
+                        position = x * largeur + y;
+                    }
+                }
+            }
+            break;
         }
-        sleep(3);
-        i++;
+        if (position >= 0)
+        {
+            c.pos = position;
+            pthread_mutex_lock(&fd->mutex_descripteur);
+            if (write(fd->fd, &c, sizeof(canne_t)) == -1)
+            {
+                perror("Erreur lors de l'envoie de la largeur 1 ");
+                exit(EXIT_FAILURE);
+            }
+            pthread_mutex_unlock(&fd->mutex_descripteur);
+            c.ancienne_pos = c.pos;
+        }
     }
 
     pthread_join(aff, NULL);
