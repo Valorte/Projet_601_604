@@ -16,7 +16,7 @@ void *routine_poisson(void *args)
 
     envoie_t message_perso;
     poisson_t *tmp = (void *)args;
-    int vie = -1,test=-1;
+    int vie = -1;
 
     message_perso.type_message = TYPE_MODIF;
     message_perso.objet.taille[0] = hauteur;
@@ -25,14 +25,8 @@ void *routine_poisson(void *args)
     {
         pthread_mutex_lock(&etang->mutex_etang);
         deplacement_poisson(etang->e, tmp, largeur, hauteur);
-        test= attrape_poisson(tmp,largeur,canne);
-
-        if(test>-1){
-            printf("le poisson a la position %d , a ete peché a la position %d\n",tmp->pos,test);
-        }
+        vie = attrape_poisson(tmp, largeur, canne);
         pthread_mutex_unlock(&etang->mutex_etang);
-
-
         pthread_mutex_lock(&sockclient->mutex_descripteur);
         envoie_info(sockclient->fd, message_perso, etang->e);
         pthread_mutex_unlock(&sockclient->mutex_descripteur);
@@ -40,12 +34,32 @@ void *routine_poisson(void *args)
         envoie_info(sockclient2->fd, message_perso, etang->e);
         pthread_mutex_unlock(&sockclient2->mutex_descripteur);
         sleep(3);
-        test=-1;
     }
 
     printf("fini\n");
     vider_case(&etang->e[tmp->pos]);
-    vider_case(&etang->e[vie]);
+    message_perso.objet.p=*tmp;
+    message_perso.type_message=TYPE_POISSON;
+    if (canne[0].pos == vie)
+    {
+        pthread_mutex_lock(&sockclient->mutex_descripteur);
+        canne[0].pos = -99;
+        if(write(sockclient->fd,&message_perso,sizeof(envoie_t))==-1){
+            perror("Erreur leurs du point\n");
+            exit(EXIT_FAILURE);
+        }
+        pthread_mutex_unlock(&sockclient->mutex_descripteur);
+    }
+    if (canne[1].pos == vie)
+    {
+        pthread_mutex_lock(&sockclient2->mutex_descripteur);
+        canne[1].pos = -99;
+        if(write(sockclient2->fd,&message_perso,sizeof(envoie_t))==-1){
+            perror("Erreur leurs du point\n");
+            exit(EXIT_FAILURE);
+        }
+        pthread_mutex_unlock(&sockclient2->mutex_descripteur);
+    }
 
     return NULL;
 }
@@ -210,8 +224,8 @@ int main(int argc, char *argv[])
     pthread_mutex_unlock(&sockclient2->mutex_descripteur);
 
     pthread_create(&gene, NULL, generer_poisson, NULL);
-    canne[0].pos=-99;
-    canne[1].pos=-99;
+    canne[0].pos = -99;
+    canne[1].pos = -99;
     while (1)
     {
         c = 0;
@@ -233,7 +247,7 @@ int main(int argc, char *argv[])
         }
         if (FD_ISSET(sockclient->fd, &fds))
         {
-            
+
             if ((c = read(sockclient->fd, &canne_recu, sizeof(envoie_t))) == -1)
             {
                 perror("Erreur lors de la recepetion de la canne de 1");

@@ -87,6 +87,7 @@ typedef struct mutex_f
 {
     WINDOW *sous_simulation;
     WINDOW *sous_joueur;
+    WINDOW *sous_score;
     pthread_mutex_t mutex_fenetre;
     pthread_cond_t attente;
     pthread_cond_t attente2;
