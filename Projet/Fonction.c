@@ -1,4 +1,9 @@
 #include "Fonction.h"
+/**
+ * Permet d'affecter des valeurs à un objet joueur_t
+ * @param i : Le numero du joueur
+ * @param j : Pointeur sur un objet joueur_t
+ **/
 
 void init_joueur(int i, joueur_t *j)
 {
@@ -8,7 +13,13 @@ void init_joueur(int i, joueur_t *j)
     j->argent = 0;
     j->point = 0;
 }
-
+/**
+ * Permet d'afficher un etang sur une fenetre ncurses
+ * @param etang : pointeur sur un tableau de case_t
+ * @param largeur : largeur du tableau
+ * @param longueur : longueur du tableau
+ * @param fenetre : pointeur sur la fenetre ncurses
+ **/
 void afficher_etang(case_t *etang, int largeur, int longueur, WINDOW *fenetre)
 {
     int i, j, k = 0;
@@ -17,24 +28,30 @@ void afficher_etang(case_t *etang, int largeur, int longueur, WINDOW *fenetre)
         for (j = 0; j < largeur; j++)
         {
 
-            if (etang[k].type_case==TYPE_POISSON)
+            if (etang[k].type_case == TYPE_POISSON)
             {
-                wattron(fenetre,COLOR_PAIR(6));
+                wattron(fenetre, COLOR_PAIR(6));
                 mvwprintw(fenetre, i, j, "%d", etang[k].valeur);
-                wattroff(fenetre,COLOR_PAIR(6));
-            }else
-            {
-                wattron(fenetre,COLOR_PAIR(4));
-                mvwprintw(fenetre, i, j, "%d", etang[k].valeur);
-                wattroff(fenetre,COLOR_PAIR(4));
+                wattroff(fenetre, COLOR_PAIR(6));
             }
-            
-            
+            else
+            {
+                wattron(fenetre, COLOR_PAIR(4));
+                mvwprintw(fenetre, i, j, "%d", etang[k].valeur);
+                wattroff(fenetre, COLOR_PAIR(4));
+            }
+
             k++;
         }
         printf("\n");
     }
 }
+
+/**
+ * Permet d'affecter des valeurs à un objet poisson_t
+ * @param p : Pointeur sur un objet poisson_t
+ * @param id : Le numero du poisson
+ **/
 void init_poisson(poisson_t *p, int id)
 {
     int v;
@@ -56,6 +73,14 @@ void init_poisson(poisson_t *p, int id)
         p->valeur = 2;
     }
 }
+/**
+ * Permet de generer un poisson et de le placer dans le tableau
+ * @param etang : pointeur sur un tableau de case_t
+ * @param largeur : largeur du tableau
+ * @param longueur : longueur du tableau
+ * @param p : Pointeur sur un objet poisson_t
+ * @param id : Le numero du poisson
+ **/
 void generer_poison(case_t *etang, int largeur, int longueur, poisson_t *p, int id)
 {
     int i;
@@ -67,13 +92,20 @@ void generer_poison(case_t *etang, int largeur, int longueur, poisson_t *p, int 
     {
         i = rand() % longueur * largeur;
     }
-    pthread_mutex_init(&p->mutex_poisson,NULL);
-    pthread_cond_init(&p->condi_poisson,NULL);
+    pthread_mutex_init(&p->mutex_poisson, NULL);
+    pthread_cond_init(&p->condi_poisson, NULL);
     p->pos = i;
     etang[i].objet.p = *p;
     etang[i].type_case = TYPE_POISSON;
 }
 
+/**
+ * Permet de deplacer un poisson dans le tableau
+ * @param etang : pointeur sur un tableau de case_t
+ * @param largeur : largeur du tableau
+ * @param longueur : longueur du tableau
+ * @param p : Pointeur sur un objet poisson_t
+ **/
 void deplacement_poisson(case_t *etang, poisson_t *p, int largeur, int longueur)
 {
     int r;
@@ -140,41 +172,13 @@ void envoie_info(int sockclient, envoie_t e, case_t *etang)
             exit(EXIT_FAILURE);
         }
     }
-    else{
+    else
+    {
         if (write(sockclient, &e, sizeof(envoie_t)) == -1)
         {
             perror("Erreur lors de l'envoie de l'info");
             exit(EXIT_FAILURE);
         }
-    }
-}
-void recevoir_info(int fd, case_t *etang, int longueur, int largeur)
-{
-
-    while (longueur == 0)
-    {
-        if (read(fd, &longueur, sizeof(int)) == -1)
-        {
-            perror("Erreur lors de la recpetion de la longueur ");
-            exit(EXIT_FAILURE);
-        }
-    }
-
-    while (largeur == 0)
-    {
-        if (read(fd, &largeur, sizeof(int)) == -1)
-        {
-            perror("Erreur lors de la reception de la largeur ");
-            exit(EXIT_FAILURE);
-        }
-    }
-    printf("largeur : %d", largeur);
-    etang = malloc(sizeof(case_t) * (longueur * largeur));
-
-    if (read(fd, &etang, sizeof(case_t) * longueur * largeur) == -1)
-    {
-        perror("Erreur lors de la reception de l'etang ");
-        exit(EXIT_FAILURE);
     }
 }
 
@@ -206,21 +210,19 @@ int attrape_poisson(poisson_t *p, int largeur, canne_t c[2])
     return joueur;
 }
 
-void fuite_poisson(case_t * etang,int pos_canne,int taille){
+void fuite_poisson(case_t *etang, int pos_canne, int taille)
+{
     int i;
-    for ( i = 1; i < 4; i++)
+    for (i = 1; i < 4; i++)
     {
-        if (etang[pos_canne +i].type_case==TYPE_POISSON && pos_canne +i < taille-(4-i))
+        if (etang[pos_canne + i].type_case == TYPE_POISSON && pos_canne + i < taille - (4 - i))
         {
-            etang[pos_canne+i].objet.p.pos+=3-i;
+            etang[pos_canne + i].objet.p.pos += 3 - i;
         }
 
-        if (etang[pos_canne -i].type_case==TYPE_POISSON && pos_canne -i > 4-i)
+        if (etang[pos_canne - i].type_case == TYPE_POISSON && pos_canne - i > 4 - i)
         {
-            etang[pos_canne-i].objet.p.pos-=3-i;
+            etang[pos_canne - i].objet.p.pos -= 3 - i;
         }
-        
     }
-    
-    
 }

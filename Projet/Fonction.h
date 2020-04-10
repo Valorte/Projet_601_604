@@ -23,12 +23,7 @@ void generer_poison(case_t *etang, int largeur, int longueur, poisson_t *p, int 
 void init_poisson(poisson_t *p, int id);
 void deplacement_poisson(case_t *etang, poisson_t *p, int largeur, int longueur);
 void envoie_info(int sockclient, envoie_t e , case_t* etang);
-void recevoir_info(int fd, case_t *etang, int longueur, int largeur);
 int attrape_poisson(poisson_t *p, int largeur, canne_t canne[2]);
 void fuite_poisson(case_t * etang,int pos_canne,int taille);
-/*void ajouter_action(file_action_t* f,action_t* r);
-void supprimer_action(file_action_t* f,action_t* r);
-action_t lire_action(file_action_t* f);
-int file_vide(file_action_t* a);*/
 
 #endif

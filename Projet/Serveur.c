@@ -1,9 +1,7 @@
 #include "Fonction.h"
-
-int vict = 0, tp;
 mutex_fd *sockclient, *sockclient2;
 etang_t *etang;
-int hauteur, largeur, nbpoisson;
+int hauteur, largeur;
 canne_t canne[2];
 int retval;
 fd_set fds;
@@ -73,7 +71,9 @@ void *generer_poisson(void *args)
     p = malloc(sizeof(poisson_t) * MAX_POISSON);
     for (i = 0; i < MAX_POISSON; i++)
     {
+        pthread_mutex_lock(&etang->mutex_etang);
         generer_poison(etang->e, largeur, hauteur, &p[i], i);
+        pthread_mutex_unlock(&etang->mutex_etang);
         usleep(100);
         pthread_create(&poisson[i], NULL, routine_poisson, &p[i]);
     }
