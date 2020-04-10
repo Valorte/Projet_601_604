@@ -1,0 +1,16 @@
+Question  :
+
+-Faire un phtread_join en dehors du thread creeant
+-Write/read dans differant thread genant ?
+-Read lit la taille voulu mais les données reste dedans ?
+-signal debloque que ceux en attente a ce momen là ?
+
+
+Montrer : 
+recuperation du type;
+
+
+pas faire de case_t canne , mais enregistrer les position des deux cannes
+
+strcut message , avec type et union de chaque message. 
+melanger affichage et lire

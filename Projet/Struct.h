@@ -26,9 +26,7 @@ typedef struct poisson_t
 
 typedef struct canne_t
 {
-    int valeur;
     int pos;
-    int ancienne_pos;
     int etat;
     int joueur;
 } canne_t;
@@ -47,11 +45,28 @@ typedef struct case_t
     int type_case;
     union {
         poisson_t p;
-        canne_t c;
         bonus_t b;
     } objet;
-    pthread_mutex_t mutex_case;
 } case_t;
+
+
+typedef struct etang_t
+{
+    case_t* e;
+    pthread_mutex_t mutex_etang;
+
+} etang_t;
+
+typedef struct envoie_t
+{
+    int type_message;
+    union {
+        poisson_t p;
+        canne_t c;
+        bonus_t b;
+        int taille[2];
+    } objet;
+} envoie_t;
 
 typedef struct joueur_t
 {

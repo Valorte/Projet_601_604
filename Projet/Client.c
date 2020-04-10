@@ -3,6 +3,7 @@
 
 int hauteur = 0, largeur = 0;
 mutex_fd *fd;
+envoie_t env;
 case_t *etang;
 canne_t c;
 requete_t req;
@@ -11,111 +12,106 @@ WINDOW *fenetre_simulation;
 mutex_f *f;
 void *lire_message(void *args)
 {
-    int retval;
+    int retval, t, att = 0;
     fd_set fds;
-    /* poisson_t p; */
+    envoie_t test;
     struct timeval tv;
-
-    tv.tv_sec = 0;
-    tv.tv_usec = 100;
-    FD_ZERO(&fds);
-    FD_SET(fd->fd, &fds);
-
-    if ((retval = select(fd->fd + 1, &fds, NULL, NULL, &tv)) == -1)
-    {
-        if (errno != EINTR)
-        {
-            perror("Serveur : erreur select");
-            exit(EXIT_FAILURE);
-        }
-    }
-    if (FD_ISSET(fd->fd, &fds))
-    {
-        /* if(read(fd->fd,&p,sizeof(poisson_t))==-1){
-            perror("Reception poisson");
-            exit(EXIT_FAILURE);
-        } */
-    }
-    return NULL;
-}
-void *affichage(void *args)
-{
-    int att = 0;
-    ncurses_initialisation();
-    ncurses_souris();
-    ncurses_couleurs();
-    wbkgd(stdscr, COLOR_PAIR(5));
-    wrefresh(stdscr);
-
-    /* pthread_mutex_lock(&fd->mutex_descripteur); */
-
-    while (hauteur == 0)
-    {
-        if (read(fd->fd, &hauteur, sizeof(int)) == -1)
-        {
-            perror("Erreur lors de la recpetion de la longueur ");
-            exit(EXIT_FAILURE);
-        }
-    }
-    while (largeur == 0)
-    {
-        if (read(fd->fd, &largeur, sizeof(int)) == -1)
-        {
-            perror("Erreur lors de la reception de la largeur ");
-            exit(EXIT_FAILURE);
-        }
-    }
-    /* pthread_mutex_unlock(&fd->mutex_descripteur); */
-    etang = malloc(sizeof(case_t) * hauteur * largeur);
-
-    fenetre_joueur = creer_fenetre(5, COLS, 0, 0, 1);
-    wbkgd(fenetre_joueur, COLOR_PAIR(1));
-    mvwprintw(fenetre_joueur, 0, 1, "Infos");
-
-    f->sous_joueur = creer_sous_fenetre(fenetre_joueur, 4 - 1, COLS - 2, 1, 1);
-    scrollok(f->sous_joueur, TRUE);
-
-    fenetre_simulation = creer_fenetre(largeur + 2, hauteur + 3, 5, 0, 1);
-    wbkgd(fenetre_simulation, COLOR_PAIR(1));
-    mvwprintw(fenetre_simulation, 0, 1, "Peche");
-    f->sous_simulation = creer_sous_fenetre(fenetre_simulation, largeur, hauteur, 1, 1);
-    wrefresh(f->sous_joueur);
-    wrefresh(fenetre_joueur);
-    wrefresh(fenetre_simulation);
-    wrefresh(f->sous_simulation);
-    pthread_cond_signal(&f->attente);
 
     while (1)
     {
-        pthread_mutex_lock(&fd->mutex_descripteur);
-        while (att == 0)
+        tv.tv_sec = 2;
+        tv.tv_usec = 0;
+        FD_ZERO(&fds);
+        FD_SET(fd->fd, &fds);
+
+        if ((retval = select(fd->fd + 1, &fds, NULL, NULL, &tv)) == -1)
         {
-            if ((att = read(fd->fd, etang, sizeof(case_t) * hauteur * largeur)) == -1)
+            if (errno != EINTR)
             {
-                perror("Erreur lors de la receptionde l'etang ");
+                perror("Serveur : erreur select");
                 exit(EXIT_FAILURE);
             }
         }
-        pthread_mutex_unlock(&fd->mutex_descripteur);
+        if (FD_ISSET(fd->fd, &fds))
+        {
+            if ((t = read(fd->fd, &test, sizeof(envoie_t))) == -1)
+            {
+                perror("Reception message");
+                exit(EXIT_FAILURE);
+            }
+
+            if (test.type_message == TYPE_ETANG && t != 0)
+            {
+                ncurses_initialisation();
+                ncurses_souris();
+                ncurses_couleurs();
+                wbkgd(stdscr, COLOR_PAIR(5));
+                wrefresh(stdscr);
+                hauteur = test.objet.taille[0];
+                largeur = test.objet.taille[1];
+
+                etang = malloc(sizeof(case_t) * hauteur * largeur);
+
+                fenetre_joueur = creer_fenetre(5, COLS, 0, 0, 1);
+                wbkgd(fenetre_joueur, COLOR_PAIR(1));
+                mvwprintw(fenetre_joueur, 0, 1, "Infos");
+
+                f->sous_joueur = creer_sous_fenetre(fenetre_joueur, 4 - 1, COLS - 2, 1, 1);
+                scrollok(f->sous_joueur, TRUE);
+
+                fenetre_simulation = creer_fenetre(largeur + 2, hauteur + 3, 5, 0, 1);
+                wbkgd(fenetre_simulation, COLOR_PAIR(1));
+                mvwprintw(fenetre_simulation, 0, 1, "Peche");
+                f->sous_simulation = creer_sous_fenetre(fenetre_simulation, largeur, hauteur, 1, 1);
+                wrefresh(f->sous_joueur);
+                wrefresh(fenetre_joueur);
+                wrefresh(fenetre_simulation);
+                wrefresh(f->sous_simulation);
+                pthread_mutex_lock(&fd->mutex_descripteur);
+                while (att == 0)
+                {
+                    if ((att = read(fd->fd, etang, sizeof(case_t) * hauteur * largeur)) == -1)
+                    {
+                        perror("Erreur lors de la receptionde l'etang ");
+                        exit(EXIT_FAILURE);
+                    }
+                }
+                pthread_mutex_unlock(&fd->mutex_descripteur);
+                pthread_cond_signal(&f->attente);
+                t = 0;
+                att = 0;
+            }
+            if (test.type_message == TYPE_MODIF && t != 0)
+            {
+                while (att == 0)
+                {
+                    if ((att = read(fd->fd, etang, sizeof(case_t) * hauteur * largeur)) == -1)
+                    {
+                        perror("Erreur lors de la receptionde l'etang ");
+                        exit(EXIT_FAILURE);
+                    }
+                }
+                att = 0;
+                t=0;
+            }
+        }
+
         pthread_mutex_lock(&f->mutex_fenetre);
         afficher_etang(etang, largeur, hauteur, f->sous_simulation);
-        wrefresh(f->sous_joueur);
-        wrefresh(fenetre_joueur);
         wrefresh(fenetre_simulation);
         wrefresh(f->sous_simulation);
         pthread_mutex_unlock(&f->mutex_fenetre);
-        att = 0;
     }
+
     return NULL;
 }
-
 int main(int argc, char *argv[])
 {
     reponse_t reponse;
-    pthread_t aff,lire;
+    pthread_t lire;
     joueur_t j;
     struct sockaddr_in adresseServeur;
-    int sockfd, x, y, bouton, sortie, position = -1;
+    int sockfd, sortie, x, y, bouton, position;
     /* Vérification des arguments */
     if (argc != 3)
     {
@@ -196,18 +192,17 @@ int main(int argc, char *argv[])
     pthread_mutex_init(&fd->mutex_descripteur, NULL);
     pthread_mutex_init(&f->mutex_fenetre, NULL);
     pthread_cond_init(&f->attente, NULL);
-    pthread_cond_init(&fd->condi_fd, NULL);
     pthread_create(&lire, NULL, lire_message, NULL);
-    pthread_create(&aff, NULL, affichage, NULL);
 
     pthread_mutex_lock(&f->mutex_fenetre);
     pthread_cond_wait(&f->attente, &f->mutex_fenetre);
     pthread_mutex_unlock(&f->mutex_fenetre);
     c.joueur = j.num;
+    position = -1;
     while (1)
     {
         pthread_mutex_lock(&f->mutex_fenetre);
-        wprintw(f->sous_joueur,"Ou poser sa canne ?\n");
+        wprintw(f->sous_joueur, "Ou poser sa canne ?\n");
         wrefresh(f->sous_joueur);
         pthread_mutex_unlock(&f->mutex_fenetre);
         sortie = getch();
@@ -225,7 +220,7 @@ int main(int argc, char *argv[])
                     if ((y < 0 || x < 0) || (y > largeur || x > hauteur))
                     {
                         pthread_mutex_lock(&f->mutex_fenetre);
-                        mvwprintw(f->sous_joueur, 1, 1, "\nCliquez dans la fenetre simulation");
+                        wprintw(f->sous_joueur, "Cliquez dans la fenetre simulation\n");
                         wrefresh(f->sous_joueur);
                         pthread_mutex_unlock(&f->mutex_fenetre);
                         position = -1;
@@ -234,6 +229,8 @@ int main(int argc, char *argv[])
                     else
                     {
                         position = x * largeur + y;
+                        wprintw(f->sous_joueur, "canne posé a  la position %d\n", position);
+                        wrefresh(f->sous_joueur);
                     }
                 }
             }
@@ -242,18 +239,20 @@ int main(int argc, char *argv[])
         if (position >= 0)
         {
             c.pos = position;
+            env.objet.c = c;
+            env.type_message = TYPE_CANNE;
             pthread_mutex_lock(&fd->mutex_descripteur);
-            if (write(fd->fd, &c, sizeof(canne_t)) == -1)
+            if (write(fd->fd, &env, sizeof(envoie_t)) == -1)
             {
-                perror("Erreur lors de l'envoie de la largeur 1 ");
+                perror("Erreur lors de l'envoie de la canne ");
                 exit(EXIT_FAILURE);
             }
             pthread_mutex_unlock(&fd->mutex_descripteur);
-            c.ancienne_pos = c.pos;
-        }
+        } 
+        sleep(3);
     }
 
-    pthread_join(aff, NULL);
+    pthread_join(lire, NULL);
 
     /* Fermeture de la socket */
     if (close(fd->fd) == -1)

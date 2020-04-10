@@ -1,65 +1,68 @@
 #include "Fonction.h"
 
-int vict = 0, sockclient, sockclient2, tp;
-case_t *e;
+int vict = 0, tp;
+mutex_fd *sockclient, *sockclient2;
+etang_t *etang;
 int hauteur, largeur, nbpoisson;
-canne_t c;
+canne_t canne[2];
 int retval;
 fd_set fds;
 struct timeval tv;
-pthread_t poisson[MAX_POISSON] , gene;
+pthread_t poisson[MAX_POISSON], gene;
+envoie_t message;
 
 void *routine_poisson(void *args)
 {
 
+    envoie_t message_perso;
     poisson_t *tmp = (void *)args;
-    int vie = -1;
+    int vie = -1,test=-1;
+
+    message_perso.type_message = TYPE_MODIF;
+    message_perso.objet.taille[0] = hauteur;
+    message_perso.objet.taille[1] = largeur;
     while (vie < 0)
     {
-        pthread_mutex_lock(&e->mutex_case);
-        deplacement_poisson(e, tmp, largeur, hauteur);
-        envoie_info(sockclient, e, largeur, hauteur, 0);
-        envoie_info(sockclient2, e, largeur, hauteur, 0);
-        vie = attrape_poisson(e, tmp, largeur);
-        pthread_mutex_unlock(&e->mutex_case);
+        pthread_mutex_lock(&etang->mutex_etang);
+        deplacement_poisson(etang->e, tmp, largeur, hauteur);
+        test= attrape_poisson(tmp,largeur,canne);
+
+        if(test>-1){
+            printf("le poisson a la position %d , a ete peché a la position %d\n",tmp->pos,test);
+        }
+        pthread_mutex_unlock(&etang->mutex_etang);
+
+
+        pthread_mutex_lock(&sockclient->mutex_descripteur);
+        envoie_info(sockclient->fd, message_perso, etang->e);
+        pthread_mutex_unlock(&sockclient->mutex_descripteur);
+        pthread_mutex_lock(&sockclient2->mutex_descripteur);
+        envoie_info(sockclient2->fd, message_perso, etang->e);
+        pthread_mutex_unlock(&sockclient2->mutex_descripteur);
         sleep(3);
+        test=-1;
     }
-    
-    if (e[vie].objet.c.joueur == 1)
-    {
-        printf("Le joueur %d a peché \n",e[vie].objet.c.joueur);
-        if (write(sockclient, tmp, sizeof(poisson_t)) == -1)
-        {
-            perror("Erreur lors de l'envoie de la longueur  ");
-            exit(EXIT_FAILURE);
-        }
-    }
-    if (e[vie].objet.c.joueur == 2)
-    {
-        printf("Le joueur %d a peché \n",e[vie].objet.c.joueur);
-        if (write(sockclient2, tmp, sizeof(poisson_t)) == -1)
-        {
-            perror("Erreur lors de l'envoie de la longueur  ");
-            exit(EXIT_FAILURE);
-        }
-    }
+
     printf("fini\n");
-    pthread_mutex_lock(&e->mutex_case);
-    vider_case(&e[tmp->pos]);
-    vider_case(&e[vie]);
-    pthread_mutex_unlock(&e->mutex_case);
+    vider_case(&etang->e[tmp->pos]);
+    vider_case(&etang->e[vie]);
 
     return NULL;
 }
-void* generer_poisson(void *args){
+void *generer_poisson(void *args)
+{
     int i;
     poisson_t *p;
-    p=malloc(sizeof(poisson_t)*MAX_POISSON);
+    p = malloc(sizeof(poisson_t) * MAX_POISSON);
     for (i = 0; i < MAX_POISSON; i++)
     {
-        
-        generer_poison(e, largeur, hauteur, &p[i], i);
+        generer_poison(etang->e, largeur, hauteur, &p[i], i);
+        usleep(100);
         pthread_create(&poisson[i], NULL, routine_poisson, &p[i]);
+    }
+    for (i = 0; i < MAX_POISSON; i++)
+    {
+        pthread_join(poisson[i], NULL);
     }
     return NULL;
 }
@@ -68,7 +71,8 @@ int main(int argc, char *argv[])
 {
     reponse_t reponse[2];
     requete_t requete;
-    int sockfd, i = 0, fd, j, k = 0, taille, max;
+    envoie_t canne_recu;
+    int sockfd, i = 0, fd, j, k = 0, taille, max, c;
     struct sockaddr_in adresseServeur;
     struct sockaddr_in adresseClient[2];
     socklen_t longueurAdresse;
@@ -140,17 +144,19 @@ int main(int argc, char *argv[])
     hauteur = atoi(argv[2]);
     largeur = atoi(argv[3]);
     taille = hauteur * largeur;
-    e = malloc(sizeof(case_t) * taille);
+    etang = malloc(sizeof(etang_t));
+    etang->e = malloc(sizeof(case_t) * taille);
     for (i = 0; i < hauteur; i++)
     {
         for (j = 0; j < largeur; j++)
         {
-            e[k].valeur = 0;
-            e[k].type_case = 0;
+            etang->e[k].valeur = 0;
+            etang->e[k].type_case = 0;
             k++;
         }
     }
-    pthread_mutex_init(&e->mutex_case, NULL);
+
+    pthread_mutex_init(&etang->mutex_etang, NULL);
 
     /* Création de l'adresse du serveur */
     memset(&adresseServeur, 0, sizeof(struct sockaddr_in));
@@ -171,35 +177,51 @@ int main(int argc, char *argv[])
         perror("Erreur lors de la mise en mode passif ");
         exit(EXIT_FAILURE);
     }
+    sockclient = malloc(sizeof(mutex_fd));
+    sockclient2 = malloc(sizeof(mutex_fd));
 
     /* Attente d'une connexion */
     printf("Serveur : attente de connexion...\n");
-    if ((sockclient = accept(fd, NULL, NULL)) == -1)
+    if ((sockclient->fd = accept(fd, NULL, NULL)) == -1)
     {
         perror("Erreur lors de la demande de connexion ");
         exit(EXIT_FAILURE);
     }
+    printf("1 connecté \n");
 
-    if ((sockclient2 = accept(fd, NULL, NULL)) == -1)
+    if ((sockclient2->fd = accept(fd, NULL, NULL)) == -1)
     {
         perror("Erreur lors de la demande de connexion ");
         exit(EXIT_FAILURE);
     }
     printf("Les deux sockets sont connectées\n");
 
-    envoie_info(sockclient, e, largeur, hauteur, 1);
-    envoie_info(sockclient2, e, largeur, hauteur, 1);
+    pthread_mutex_init(&sockclient->mutex_descripteur, NULL);
+    pthread_mutex_init(&sockclient2->mutex_descripteur, NULL);
 
-    /* pthread_create(&gene,NULL,generer_poisson,NULL); */
+    message.type_message = TYPE_ETANG;
+    message.objet.taille[0] = hauteur;
+    message.objet.taille[1] = largeur;
+    pthread_mutex_lock(&sockclient->mutex_descripteur);
+    envoie_info(sockclient->fd, message, etang->e);
+    pthread_mutex_unlock(&sockclient->mutex_descripteur);
+    pthread_mutex_lock(&sockclient2->mutex_descripteur);
+    envoie_info(sockclient2->fd, message, etang->e);
+    pthread_mutex_unlock(&sockclient2->mutex_descripteur);
+
+    pthread_create(&gene, NULL, generer_poisson, NULL);
+    canne[0].pos=-99;
+    canne[1].pos=-99;
     while (1)
     {
+        c = 0;
 
-        max = sockclient2 + sockclient;
+        max = sockclient2->fd + sockclient->fd;
         tv.tv_sec = 0;
         tv.tv_usec = 100;
         FD_ZERO(&fds);
-        FD_SET(sockclient, &fds);
-        FD_SET(sockclient2, &fds);
+        FD_SET(sockclient->fd, &fds);
+        FD_SET(sockclient2->fd, &fds);
 
         if ((retval = select(max + 1, &fds, NULL, NULL, &tv)) == -1)
         {
@@ -209,52 +231,45 @@ int main(int argc, char *argv[])
                 exit(EXIT_FAILURE);
             }
         }
-        if (FD_ISSET(sockclient, &fds))
+        if (FD_ISSET(sockclient->fd, &fds))
         {
-            if (read(sockclient, &c, sizeof(canne_t)) == -1)
+            
+            if ((c = read(sockclient->fd, &canne_recu, sizeof(envoie_t))) == -1)
             {
                 perror("Erreur lors de la recepetion de la canne de 1");
                 exit(EXIT_FAILURE);
             }
-            pthread_mutex_lock(&e->mutex_case);
-            vider_case(&e[c.ancienne_pos]);
-            e[c.pos].type_case = TYPE_CANNE;
-            e[c.pos].valeur = c.joueur + 5;
-            e[c.pos].objet.c = c;
-            pthread_mutex_unlock(&e->mutex_case);
+            if (c != 0 && canne_recu.type_message == TYPE_CANNE)
+            {
+                canne[0] = canne_recu.objet.c;
+                printf("canne du joueur : %d , a la position %d\n", canne[0].joueur, canne[0].pos);
+            }
         }
-        if (FD_ISSET(sockclient2, &fds))
+        if (FD_ISSET(sockclient2->fd, &fds))
         {
 
-            if (read(sockclient2, &c, sizeof(canne_t)) == -1)
+            if ((c = read(sockclient2->fd, &canne_recu, sizeof(envoie_t))) == -1)
             {
                 perror("Erreur lors de la recepetion de la canne de 2");
                 exit(EXIT_FAILURE);
             }
-            pthread_mutex_lock(&e->mutex_case);
-            vider_case(&e[c.ancienne_pos]);
-            e[c.pos].type_case = TYPE_CANNE;
-            e[c.pos].valeur = c.joueur + 5;
-            e[c.pos].objet.c = c;
-            pthread_mutex_unlock(&e->mutex_case);
+            if (c != 0 && canne_recu.type_message == TYPE_CANNE)
+            {
+                canne[1] = canne_recu.objet.c;
+                printf("canne du joueur : %d , a la position %d\n", canne[1].joueur, canne[1].pos);
+            }
         }
-        envoie_info(sockclient, e, largeur, hauteur, 0);
-        envoie_info(sockclient2, e, largeur, hauteur, 0);
     }
 
-    for (i = 0; i < MAX_POISSON; i++)
-    {
-        pthread_join(poisson[i], NULL);
-    }
     pthread_join(gene, NULL);
 
     /* Fermeture des sockets */
-    if (close(sockclient) == -1)
+    if (close(sockclient->fd) == -1)
     {
         perror("Erreur lors de la fermeture de la socket de communication ");
         exit(EXIT_FAILURE);
     }
-    if (close(sockclient2) == -1)
+    if (close(sockclient2->fd) == -1)
     {
         perror("Erreur lors de la fermeture de la socket de communication ");
         exit(EXIT_FAILURE);
@@ -272,7 +287,8 @@ int main(int argc, char *argv[])
     }
 
     printf("Serveur terminé.\n");
-    free(e);
+    free(etang->e);
+    free(etang);
 
     return EXIT_SUCCESS;
 }

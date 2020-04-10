@@ -26,7 +26,6 @@ void init_poisson(poisson_t *p, int id)
 {
     int v;
     srand(time(NULL));
-    p->valeur = id;
     p->etat = 0;
     p->pos = 0;
 
@@ -43,6 +42,7 @@ void init_poisson(poisson_t *p, int id)
     {
         p->valeur = 2;
     }
+    p->valeur = id;
 }
 void generer_poison(case_t *etang, int largeur, int longueur, poisson_t *p, int id)
 {
@@ -57,13 +57,14 @@ void generer_poison(case_t *etang, int largeur, int longueur, poisson_t *p, int 
     }
     p->pos = i;
     etang[i].objet.p = *p;
+    etang[i].type_case = p->valeur;
 }
 
 void deplacement_poisson(case_t *etang, poisson_t *p, int largeur, int longueur)
 {
     int r;
     vider_case(&etang[p->pos]);
-    srand(time(NULL));
+
     r = rand() % 4;
     switch (r)
     {
@@ -106,42 +107,29 @@ void deplacement_poisson(case_t *etang, poisson_t *p, int largeur, int longueur)
     }
     changer_case_poisson(etang, p);
 }
-/**
- * @param envoie 1 pour envoyé la carte avec la longueur et la largeur 
- **/
-void envoie_info(int sockclient, case_t *etang, int longueur, int largeur, int envoie)
+
+void envoie_info(int sockclient, envoie_t e, case_t *etang)
 {
-    if (envoie == 1)
+
+    if (e.type_message == TYPE_MODIF || e.type_message == TYPE_ETANG)
     {
-        if (write(sockclient, &longueur, sizeof(longueur)) == -1)
+        /* code */
+
+        if (write(sockclient, &e, sizeof(envoie_t)) == -1)
         {
-            perror("Erreur lors de l'envoie de la longueur  ");
+            perror("Erreur lors de l'envoie de l'info");
             exit(EXIT_FAILURE);
         }
-
-        if (write(sockclient, &largeur, sizeof(largeur)) == -1)
+        if (write(sockclient, etang, sizeof(case_t) * e.objet.taille[0] * e.objet.taille[1]) == -1)
         {
-            perror("Erreur lors de l'envoie de la largeur 1 ");
-            exit(EXIT_FAILURE);
-        }
-
-        if (write(sockclient, etang, sizeof(case_t) * longueur * largeur) == -1)
-        {
-            perror("Erreur lors de l'envoie de l'etang 1 ");
+            perror("Erreur lors de la reception de l'etang ");
             exit(EXIT_FAILURE);
         }
     }
-    else
-    {
-        /* test = TYPE_MODIF;
-        if (write(sockclient, &test, sizeof(int)) == -1)
+    else{
+        if (write(sockclient, &e, sizeof(envoie_t)) == -1)
         {
-            perror("Erreur lors de l'envoie de l'etang  2 ");
-            exit(EXIT_FAILURE);
-        } */
-        if (write(sockclient, etang, sizeof(case_t) * longueur * largeur) == -1)
-        {
-            perror("Erreur lors de l'envoie de l'etang  2 ");
+            perror("Erreur lors de l'envoie de l'info");
             exit(EXIT_FAILURE);
         }
     }
@@ -189,31 +177,17 @@ void changer_case_poisson(case_t *etang, poisson_t *p)
     etang[p->pos].valeur = p->valeur;
 }
 
-int attrape_poisson(case_t *etang, poisson_t *p, int largeur)
+int attrape_poisson(poisson_t *p, int largeur, canne_t c[2])
 {
-    case_t maybe[4];
-    int choix = -1;
-    maybe[0] = etang[p->pos - 1];
-    maybe[1] = etang[p->pos + 1];
-    maybe[2] = etang[p->pos + largeur];
-    maybe[3] = etang[p->pos - largeur];
+    int joueur = -1, i;
 
-    if (maybe[0].type_case == TYPE_CANNE)
+    for (i = 0; i < 2; i++)
     {
-        choix = p->pos - 1;
-    }
-    if (maybe[1].type_case == TYPE_CANNE)
-    {
-        choix = p->pos + 1;
-    }
-    if (maybe[2].type_case == TYPE_CANNE)
-    {
-        choix = p->pos + largeur;
-    }
-    if (maybe[3].type_case == TYPE_CANNE)
-    {
-        choix = p->pos - largeur;
+        if (c[i].pos == p->pos - 1 || c[i].pos == p->pos + 1 || c[i].pos == p->pos - largeur || c[i].pos == p->pos + largeur)
+        {
+            joueur = c[i].pos;
+        }
     }
 
-    return choix;
+    return joueur;
 }
