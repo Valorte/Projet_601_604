@@ -12,6 +12,7 @@ WINDOW *fenetre_joueur;
 WINDOW *fenetre_simulation;
 WINDOW *fenetre_score;
 mutex_f *f;
+int x, y;
 void *lire_message(void *args)
 {
     int retval, t, att = 0;
@@ -65,13 +66,13 @@ void *lire_message(void *args)
                 wbkgd(fenetre_simulation, COLOR_PAIR(1));
                 mvwprintw(fenetre_simulation, 0, 1, "Peche");
                 f->sous_simulation = creer_sous_fenetre(fenetre_simulation, largeur, hauteur, 1, 1);
-                
-                fenetre_score = creer_fenetre(largeur + 2, hauteur + 8, 5, largeur+3, 1);
+
+                fenetre_score = creer_fenetre(largeur + 2, hauteur + 8, 5, largeur + 3, 1);
                 wbkgd(fenetre_score, COLOR_PAIR(1));
-                mvwprintw(fenetre_score, 0, 1, "Score joueur %d",j.num);
+                mvwprintw(fenetre_score, 0, 1, "Score joueur %d", j.num);
                 f->sous_score = creer_sous_fenetre(fenetre_score, 10, 10, 1, 1);
 
-                mvwprintw(f->sous_score, 1, 1, "point : %d",j.point);
+                mvwprintw(f->sous_score, 1, 1, "point : %d", j.point);
                 wrefresh(f->sous_joueur);
                 wrefresh(fenetre_joueur);
                 wrefresh(fenetre_simulation);
@@ -102,15 +103,18 @@ void *lire_message(void *args)
                         exit(EXIT_FAILURE);
                     }
                 }
+
                 att = 0;
-                t=0;
+                t = 0;
             }
             if (test.type_message == TYPE_POISSON && t != 0)
             {
-                j.point+= test.objet.p.valeur;
-                mvwprintw(f->sous_score, 1, 1, "point : %d",j.point);
+                c.pos = -1;
+                j.point += test.objet.p.valeur;
+                pthread_mutex_lock(&f->mutex_fenetre);
+                mvwprintw(f->sous_score, 1, 1, "point : %d", j.point);
                 wrefresh(f->sous_score);
-
+                pthread_mutex_unlock(&f->mutex_fenetre);
             }
         }
 
@@ -118,6 +122,12 @@ void *lire_message(void *args)
         afficher_etang(etang, largeur, hauteur, f->sous_simulation);
         wrefresh(fenetre_simulation);
         wrefresh(f->sous_simulation);
+        if (c.pos >= 0)
+        {
+            wattron(f->sous_simulation, COLOR_PAIR(5));
+            mvwprintw(f->sous_simulation, x, y, " ");
+            wrefresh(f->sous_simulation);
+        }
         pthread_mutex_unlock(&f->mutex_fenetre);
     }
 
@@ -128,7 +138,7 @@ int main(int argc, char *argv[])
     reponse_t reponse;
     pthread_t lire;
     struct sockaddr_in adresseServeur;
-    int sockfd, sortie, x, y, bouton, position;
+    int sockfd, sortie, bouton, position;
     /* Vérification des arguments */
     if (argc != 3)
     {
@@ -205,6 +215,8 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
     f = malloc(sizeof(mutex_f));
+    c.joueur = j.num;
+    c.pos = -1;
 
     pthread_mutex_init(&fd->mutex_descripteur, NULL);
     pthread_mutex_init(&f->mutex_fenetre, NULL);
@@ -214,12 +226,10 @@ int main(int argc, char *argv[])
     pthread_mutex_lock(&f->mutex_fenetre);
     pthread_cond_wait(&f->attente, &f->mutex_fenetre);
     pthread_mutex_unlock(&f->mutex_fenetre);
-    c.joueur = j.num;
     position = -1;
     while (1)
     {
         pthread_mutex_lock(&f->mutex_fenetre);
-        wprintw(f->sous_joueur, "Ou poser sa canne ?\n");
         wrefresh(f->sous_joueur);
         pthread_mutex_unlock(&f->mutex_fenetre);
         sortie = getch();
@@ -246,15 +256,17 @@ int main(int argc, char *argv[])
                     else
                     {
                         position = x * largeur + y;
-                        wprintw(f->sous_joueur, "canne posé a  la position %d\n", position);
-                        wrefresh(f->sous_joueur);
                     }
                 }
             }
             break;
         }
-        if (position >= 0)
+        if (position >= 0 && position != c.pos)
         {
+            pthread_mutex_lock(&f->mutex_fenetre);
+            wprintw(f->sous_joueur, "canne posé a  la position %d\n", position);
+            wrefresh(f->sous_joueur);
+            pthread_mutex_unlock(&f->mutex_fenetre);
             c.pos = position;
             env.objet.c = c;
             env.type_message = TYPE_CANNE;
@@ -265,7 +277,29 @@ int main(int argc, char *argv[])
                 exit(EXIT_FAILURE);
             }
             pthread_mutex_unlock(&fd->mutex_descripteur);
-        } 
+        }
+        else
+        {
+            if (position >= 0 && position == c.pos)
+            {
+                c.pos = -1;
+                env.objet.c = c;
+                env.type_message = TYPE_CANNE_RELEVE;
+
+                pthread_mutex_lock(&f->mutex_fenetre);
+                wprintw(f->sous_joueur, "canne relevé");
+                wrefresh(f->sous_joueur);
+                pthread_mutex_unlock(&f->mutex_fenetre);
+
+                pthread_mutex_lock(&fd->mutex_descripteur);
+                if (write(fd->fd, &env, sizeof(envoie_t)) == -1)
+                {
+                    perror("Erreur lors de l'envoie de la canne ");
+                    exit(EXIT_FAILURE);
+                }
+                pthread_mutex_unlock(&fd->mutex_descripteur);
+            }
+        }
         sleep(3);
     }
 

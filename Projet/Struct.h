@@ -14,11 +14,16 @@
 #define TYPE_CONNEXION 6
 #define TYPE_REPONSE 7
 #define TYPE_POISSON 8
+#define TYPE_CANNE_RELEVE 9
 
 
 
 typedef struct poisson_t
 {
+    pthread_mutex_t mutex_poisson;
+    pthread_cond_t condi_poisson;
+    pthread_mutex_t mutex_poisson2;
+    pthread_cond_t condi_poisson2;
     int valeur;
     int pos;
     int etat;

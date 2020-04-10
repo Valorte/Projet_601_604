@@ -8,6 +8,7 @@ canne_t canne[2];
 int retval;
 fd_set fds;
 struct timeval tv;
+poisson_t *p;
 pthread_t poisson[MAX_POISSON], gene;
 envoie_t message;
 
@@ -25,7 +26,7 @@ void *routine_poisson(void *args)
     {
         pthread_mutex_lock(&etang->mutex_etang);
         deplacement_poisson(etang->e, tmp, largeur, hauteur);
-        vie = attrape_poisson(tmp, largeur, canne);
+        vie = attrape_poisson(tmp, largeur, canne); 
         pthread_mutex_unlock(&etang->mutex_etang);
         pthread_mutex_lock(&sockclient->mutex_descripteur);
         envoie_info(sockclient->fd, message_perso, etang->e);
@@ -33,18 +34,19 @@ void *routine_poisson(void *args)
         pthread_mutex_lock(&sockclient2->mutex_descripteur);
         envoie_info(sockclient2->fd, message_perso, etang->e);
         pthread_mutex_unlock(&sockclient2->mutex_descripteur);
-        sleep(3);
+        sleep(1);
     }
 
     printf("fini\n");
     vider_case(&etang->e[tmp->pos]);
-    message_perso.objet.p=*tmp;
-    message_perso.type_message=TYPE_POISSON;
+    message_perso.objet.p = *tmp;
+    message_perso.type_message = TYPE_POISSON;
     if (canne[0].pos == vie)
     {
         pthread_mutex_lock(&sockclient->mutex_descripteur);
         canne[0].pos = -99;
-        if(write(sockclient->fd,&message_perso,sizeof(envoie_t))==-1){
+        if (write(sockclient->fd, &message_perso, sizeof(envoie_t)) == -1)
+        {
             perror("Erreur leurs du point\n");
             exit(EXIT_FAILURE);
         }
@@ -54,7 +56,8 @@ void *routine_poisson(void *args)
     {
         pthread_mutex_lock(&sockclient2->mutex_descripteur);
         canne[1].pos = -99;
-        if(write(sockclient2->fd,&message_perso,sizeof(envoie_t))==-1){
+        if (write(sockclient2->fd, &message_perso, sizeof(envoie_t)) == -1)
+        {
             perror("Erreur leurs du point\n");
             exit(EXIT_FAILURE);
         }
@@ -66,7 +69,7 @@ void *routine_poisson(void *args)
 void *generer_poisson(void *args)
 {
     int i;
-    poisson_t *p;
+    
     p = malloc(sizeof(poisson_t) * MAX_POISSON);
     for (i = 0; i < MAX_POISSON; i++)
     {
@@ -78,6 +81,7 @@ void *generer_poisson(void *args)
     {
         pthread_join(poisson[i], NULL);
     }
+    free(p);
     return NULL;
 }
 
@@ -255,8 +259,18 @@ int main(int argc, char *argv[])
             }
             if (c != 0 && canne_recu.type_message == TYPE_CANNE)
             {
-                canne[0] = canne_recu.objet.c;
-                printf("canne du joueur : %d , a la position %d\n", canne[0].joueur, canne[0].pos);
+                 canne[0] = canne_recu.objet.c;
+                /*for ( i = 0; i < MAX_POISSON; i++)
+                {
+                    pthread_mutex_lock(&p[i].mutex_poisson);
+                    fuite_poisson(etang->e,canne[0].pos,taille);
+                    pthread_mutex_unlock(&p[i].mutex_poisson);
+                    
+                } */
+            }
+            if (c != 0 && canne_recu.type_message == TYPE_CANNE_RELEVE)
+            {
+                printf("canne du relvé\n");
             }
         }
         if (FD_ISSET(sockclient2->fd, &fds))
@@ -270,7 +284,19 @@ int main(int argc, char *argv[])
             if (c != 0 && canne_recu.type_message == TYPE_CANNE)
             {
                 canne[1] = canne_recu.objet.c;
+                /* for ( i = 0; i < MAX_POISSON; i++)
+                {
+                    pthread_mutex_lock(&p[i].mutex_poisson);
+                    fuite_poisson(etang->e,canne[1].pos,taille);
+                    pthread_mutex_unlock(&p[i].mutex_poisson);
+                    
+                } */
+                
                 printf("canne du joueur : %d , a la position %d\n", canne[1].joueur, canne[1].pos);
+            }
+            if (c != 0 && canne_recu.type_message == TYPE_CANNE_RELEVE)
+            {
+                printf("canne du relvé\n");
             }
         }
     }
@@ -303,6 +329,8 @@ int main(int argc, char *argv[])
     printf("Serveur terminé.\n");
     free(etang->e);
     free(etang);
+    free(sockclient);
+    free(sockclient2);
 
     return EXIT_SUCCESS;
 }

@@ -16,7 +16,20 @@ void afficher_etang(case_t *etang, int largeur, int longueur, WINDOW *fenetre)
     {
         for (j = 0; j < largeur; j++)
         {
-            mvwprintw(fenetre, i, j, "%d", etang[k].valeur);
+
+            if (etang[k].type_case==TYPE_POISSON)
+            {
+                wattron(fenetre,COLOR_PAIR(6));
+                mvwprintw(fenetre, i, j, "%d", etang[k].valeur);
+                wattroff(fenetre,COLOR_PAIR(6));
+            }else
+            {
+                wattron(fenetre,COLOR_PAIR(4));
+                mvwprintw(fenetre, i, j, "%d", etang[k].valeur);
+                wattroff(fenetre,COLOR_PAIR(4));
+            }
+            
+            
             k++;
         }
         printf("\n");
@@ -42,7 +55,6 @@ void init_poisson(poisson_t *p, int id)
     {
         p->valeur = 2;
     }
-    p->valeur = id;
 }
 void generer_poison(case_t *etang, int largeur, int longueur, poisson_t *p, int id)
 {
@@ -55,9 +67,11 @@ void generer_poison(case_t *etang, int largeur, int longueur, poisson_t *p, int 
     {
         i = rand() % longueur * largeur;
     }
+    pthread_mutex_init(&p->mutex_poisson,NULL);
+    pthread_cond_init(&p->condi_poisson,NULL);
     p->pos = i;
     etang[i].objet.p = *p;
-    etang[i].type_case = p->valeur;
+    etang[i].type_case = TYPE_POISSON;
 }
 
 void deplacement_poisson(case_t *etang, poisson_t *p, int largeur, int longueur)
@@ -190,4 +204,23 @@ int attrape_poisson(poisson_t *p, int largeur, canne_t c[2])
     }
 
     return joueur;
+}
+
+void fuite_poisson(case_t * etang,int pos_canne,int taille){
+    int i;
+    for ( i = 1; i < 4; i++)
+    {
+        if (etang[pos_canne +i].type_case==TYPE_POISSON && pos_canne +i < taille-(4-i))
+        {
+            etang[pos_canne+i].objet.p.pos+=3-i;
+        }
+
+        if (etang[pos_canne -i].type_case==TYPE_POISSON && pos_canne -i > 4-i)
+        {
+            etang[pos_canne-i].objet.p.pos-=3-i;
+        }
+        
+    }
+    
+    
 }

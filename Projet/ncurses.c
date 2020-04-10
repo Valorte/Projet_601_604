@@ -38,8 +38,9 @@ void ncurses_couleurs()
     init_pair(1, COLOR_BLUE, COLOR_WHITE);
     init_pair(2, COLOR_GREEN, COLOR_GREEN);
     init_pair(3, COLOR_BLUE, COLOR_WHITE);
-    init_pair(4, COLOR_WHITE, COLOR_WHITE);
+    init_pair(4, COLOR_CYAN, COLOR_CYAN);
     init_pair(5,COLOR_BLACK,COLOR_BLACK);
+    init_pair(6,COLOR_BLACK,COLOR_YELLOW);
 }
 
 /**
@@ -102,37 +103,3 @@ WINDOW* creer_sous_fenetre(WINDOW* fenetre, int hauteur, int largeur, int y, int
   return sous_fenetre;
 }
 
-int obstacle(unsigned char tab[15][30], int i , int j)
-{
-  int repo = 0; /*ok*/
-
-  if(tab[i + 1][j] != '0')
-  {
-    if((tab[i][j - 1] != '0' && tab[i][j + 1] != '0') || (j > 30 || j < 0))
-    {
-      repo = -2; /*bloqué*/
-    }
-    
-    if(tab[i][j - 1] == '0' && tab[i + 1][j - 1] != '0')
-    {
-      repo = -2; /*bloqué*/
-    }
-
-    if(tab[i][j + 1] == '0' && tab[i + 1][j + 1] != '0')
-    {
-      repo = -2; /*bloqué*/
-    }
-
-    if(tab[i][j - 1] == '0' && tab[i + 1][j - 1] == '0')
-    {
-      repo = -1; /*gauche*/
-    }
-
-    if(tab[i][j + 1] == '0' && tab[i + 1][j + 1] == '0')
-    {
-      repo = 1; /*droite*/
-    }  
-  }
-
-  return repo;
-}

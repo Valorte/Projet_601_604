@@ -14,3 +14,6 @@ pas faire de case_t canne , mais enregistrer les position des deux cannes
 
 strcut message , avec type et union de chaque message. 
 melanger affichage et lire
+
+
+pour la peche : changer une varibale sur la canne et veifier au moment de relever si il y a ds poissons

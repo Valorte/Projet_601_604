@@ -438,3 +438,42 @@ pthread_mutex_lock(&e[tmp->pos].mutex_case);
         att = 0;
     }
     return NULL;
+
+
+
+
+
+
+
+    if (vie > 0)
+        {
+            if (canne[0].pos == vie)
+            {
+                pthread_mutex_lock(&tmp->mutex_poisson);
+                if (pthread_cond_timedwait(&tmp->condi_poisson, &tmp->mutex_poisson, &attente) == 0)
+                {
+                    printf("tu mas eu 1\n");
+                }
+                else
+                {
+                    printf("loupé  1\n");
+                }
+
+                pthread_mutex_unlock(&tmp->mutex_poisson);
+            }
+            if (canne[1].pos == vie)
+            {
+                pthread_mutex_lock(&tmp->mutex_poisson2);
+                if (pthread_cond_timedwait(&tmp->condi_poisson2, &tmp->mutex_poisson2, &attente) == 0)
+                {
+                    printf("tu mas eu 1\n");
+                }
+                else
+                {
+                    printf("loupé  1\n");
+                }
+                pthread_mutex_unlock(&tmp->mutex_poisson2);
+            }
+        }
+        else
+        {
